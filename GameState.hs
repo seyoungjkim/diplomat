@@ -1,5 +1,5 @@
 {-# OPTIONS -Wincomplete-patterns #-}
-module GameState (Card, Suit, Rank, Player, Game, Hand, deck) where
+module GameState (Card, Suit, Rank, Player, Game, PlayerHand, deck, plusCard, multCard) where
 
 import State (State)
 import Data.Set as Set
@@ -15,15 +15,21 @@ data Rank = Ace   | Two  | Three | Four | Five  | Six | Seven
 data Suit = Diamond | Club | Heart | Spade
   deriving (Eq, Show, Ord, Enum, Bounded)
 
-data Player = P { id :: Integer, hand :: Hand, ranks :: Set Rank, ai :: Bool }
+data Player = P { id :: Integer, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool }
   deriving (Eq, Show)
 
-type Hand = Set Card
+type PlayerHand = Set Card
 
 -- Game represented as a GameStore and current player
 type Game = State GameStore Player
 
 data GameStore = G { players :: [Player], faceUpCards :: [Card] }
+
+plusCard :: Card -> Int -> Int
+plusCard c i = fromEnum (rank c) + 1 + i
+
+multCard :: Card -> Int -> Int
+multCard c i = (fromEnum (rank c) + 1) * i
 
 -- Way to represent the game state to the player.
 show :: GameStore -> String
