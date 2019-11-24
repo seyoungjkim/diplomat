@@ -63,7 +63,7 @@ getAnswerInt :: QInt -> PlayerHand -> Int
 getAnswerInt (IntVal i) h         = i
 getAnswerInt (Cardinality qh) h   = length (getAnswerHand qh h)
 getAnswerInt (SumHand qh) h       = foldr plusCard 0 (getAnswerHand qh h)
-getAnswerInt (ProductHand qh) h   = foldr multCard 1 (getAnswerHand qh h)
+getAnswerInt (ProductHand qh) h   = foldr multiplyCard 1 (getAnswerHand qh h)
 getAnswerInt (Sum qi1 qi2) h      = getAnswerInt qi1 h + getAnswerInt qi2 h
 getAnswerInt (Diff qi1 qi2) h     = getAnswerInt qi1 h - getAnswerInt qi2 h
 getAnswerInt (Mod qi1 qi2) h      = case (getAnswerInt qi2 h) of
