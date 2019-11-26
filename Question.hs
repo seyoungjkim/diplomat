@@ -18,7 +18,18 @@ data Question =
   | Lt QInt QInt                   -- ((int)) -> ((int)) -> bool
   | Ge QInt QInt                   -- ((int)) -> ((int)) -> bool
   | Le QInt QInt                   -- ((int)) -> ((int)) -> bool
-  deriving (Show)
+
+instance Show Question where
+  show (SpecificCard c) = "Do you have the " ++ show c ++ "?"
+  show (NonEmpty qh) = "Is the set {" ++ show qh ++ "} empty?"
+  show (Union q1 q2) = "(" ++ show q1 ++ ") or (" ++ show q2 ++ ")?"
+  show (Intersection q1 q2) = "(" ++ show q1 ++ ") and (" ++ show q2 ++ ")?"
+  show (Not q) = "Not (" ++ show q ++ ")"
+  show (Equals qi1 qi2) = "Is (" ++ show qi1 ++ ") equal to (" ++ show qi2 ++ ")?"
+  show (Gt qi1 qi2) = "Is (" ++ show qi1 ++ ") greater than (" ++ show qi2 ++ ")?"
+  show (Lt qi1 qi2) = "Is (" ++ show qi1 ++ ") less than (" ++ show qi2 ++ ")?"
+  show (Ge qi1 qi2) = "Is (" ++ show qi1 ++ ") greater than or equal to (" ++ show qi2 ++ ")?"
+  show (Le qi1 qi2) = "Is (" ++ show qi1 ++ ") less than or equal to (" ++ show qi2 ++ ")?"
 
 data QInt = 
   IntVal Int                       -- -> int
@@ -30,7 +41,18 @@ data QInt =
   | Mod QInt QInt                  -- ((int)) -> ((int)) -> int
   | Product QInt QInt              -- ((int)) -> ((int)) -> int
   | Quotient QInt QInt             -- ((int)) -> ((int)) -> int
-  deriving (Show)
+
+instance Show QInt where
+  show (IntVal i) = show i
+  show (Cardinality qh) = "the size of {" ++ show qh ++ "}"
+  show (SumHand qh) = "the sum of {" ++ show qh ++ "}"
+  show (ProductHand qh) = "the product of {" ++ show qh ++ "}"
+  show (Sum qi1 qi2) = "(" ++ show qi1 ++ ") plus (" ++ show qi2 ++ ")" 
+  show (Diff qi1 qi2) = "(" ++ show qi1 ++ ") minus (" ++ show qi2 ++ ")" 
+  show (Mod qi1 qi2) = "(" ++ show qi1 ++ ") mod (" ++ show qi2 ++ ")" 
+  show (Product qi1 qi2) = "(" ++ show qi1 ++ ") times (" ++ show qi2 ++ ")" 
+  show (Quotient qi1 qi2) = "(" ++ show qi1 ++ ") divided by (" ++ show qi2 ++ ")" 
+
 
 data QHand = 
   Hand                             -- -> hand
@@ -39,10 +61,12 @@ data QHand =
   | IntersectionHand QHand QHand   -- ((hand)) -> ((hand)) -> hand
   
 instance Show QHand where
-  show (Hand) = "Hand"
-  show (UnionHand qh1 qh2) = "UnionHand" ++ show qh1 ++ show qh2
-  show (IntersectionHand qh1 qh2) = "IntersectionHand" ++ show qh1 ++ show qh2
-  show _ = show "hi" 
+  show Hand = "Hand"
+  show (UnionHand qh1 qh2) = "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
+  show (IntersectionHand qh1 qh2) = "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
+  show (Filter f qh) = "Filter([" ++ (findTrueCard f) ++ "], " ++ show qh ++ ")"
+    where findTrueCard :: (Card -> Bool) -> String
+          findTrueCard f = foldr (\x acc -> if f x then show x else acc) "N/A" deck
 
 -------------------------------------------------------------------------
 -- | returns bool value of a top-level question

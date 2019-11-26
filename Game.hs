@@ -20,5 +20,10 @@ displayAnswer :: Question -> Player -> IO Bool
 displayAnswer = undefined
 
 -- | make moves until someone wins
-playGame :: Game -> IO ()
-playGame = undefined
+main :: Game -> IO ()
+main = undefined
+
+move :: Game -> GameStore -> IO ()
+move g gs = do
+    putStrLn $ "player: " ++ show x ++ ", gamestore: " ++ show s
+    where (x,s) = S.runState g gs

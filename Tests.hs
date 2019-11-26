@@ -72,10 +72,15 @@ instance Arbitrary QInt where
 instance Arbitrary QHand where
   arbitrary = frequency [ (8, return Hand),
                           (1, liftM2 UnionHand arbitrary arbitrary),
-                          (1, liftM2 IntersectionHand arbitrary arbitrary) ]
+                          (1, liftM2 IntersectionHand arbitrary arbitrary),
+                          (5, liftM2 Filter arbitrary arbitrary) ]
   shrink (UnionHand qh1 qh2) = [qh1, qh2]
   shrink (IntersectionHand qh1 qh2) = [qh1, qh2]
-  shrink _ = []
+  shrink (Filter _ qh) = [qh]
+  shrink Hand = []
+  
+instance CoArbitrary Card where
+  coarbitrary c = variant $ fromEnum (suit c) * 13 + fromEnum (rank c)
 
 -------------------- GameState Tests --------------------
 -- all cards distributed when game is initialized

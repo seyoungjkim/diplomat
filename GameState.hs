@@ -8,7 +8,10 @@ import System.Random
 
 -------------------------------------------------------------------------------
 data Card = Card { rank :: Rank, suit :: Suit }
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
+
+instance Show Card where
+  show c = show (rank c) ++ " of " ++ show (suit c) ++ "s"
 
 data Rank = Ace   | Two  | Three | Four | Five  | Six | Seven 
           | Eight | Nine | Ten   | Jack | Queen | King
@@ -26,7 +29,9 @@ type PlayerHand = Set Card
 type Game = State GameStore Player
 
 data GameStore = G { players :: [Player], faceUpCards :: [Card] }
-  deriving (Show)
+
+instance Show GameStore where
+  show = undefined
 
 -------------------------------------------------------------------------------
 plusCard :: Card -> Int -> Int
@@ -34,10 +39,6 @@ plusCard c i = fromEnum (rank c) + 1 + i
 
 multiplyCard :: Card -> Int -> Int
 multiplyCard c i = (fromEnum (rank c) + 1) * i
-
--- Way to represent the game state to the player.
-show :: GameStore -> String
-show = undefined
 
 -- | initializes game given the number of total players and AIs
 initialGame :: Int -> Int -> Game
