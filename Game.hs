@@ -20,10 +20,18 @@ displayAnswer :: Question -> Player -> IO Bool
 displayAnswer = undefined
 
 -- | make moves until someone wins
-main :: Game -> IO ()
-main = undefined
+-- TODO: restrict arguments
+main :: Int -> Int -> IO ()
+main numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
+                            sequence = players initialStore in
+  go sequence initialStore where
+    go :: [Player] -> GameStore -> IO()
+    go sequence store = let (sequence', store') = S.runState (move sequence) store in do
+        putStrLn (show (sequence !! 0))
+        str <- getLine
+        go sequence' store'
 
-move :: Game -> GameStore -> IO ()
-move g gs = do
-    putStrLn $ "player: " ++ show x ++ ", gamestore: " ++ show s
-    where (x,s) = S.runState g gs
+move :: [Player] -> Game
+move [] = return []
+move (x:xs) = do
+  return (xs ++ [x])

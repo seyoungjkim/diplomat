@@ -26,7 +26,7 @@ data Player = P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool 
 type PlayerHand = Set Card
 
 -- Game represented as a GameStore and current player
-type Game = State GameStore Player
+type Game = State GameStore [Player]
 
 data GameStore = G { players :: [Player], faceUpCards :: [Card] }
 
@@ -41,21 +41,22 @@ multiplyCard :: Card -> Int -> Int
 multiplyCard c i = (fromEnum (rank c) + 1) * i
 
 -- | initializes game given the number of total players and AIs
-initialGame :: Int -> Int -> Game
-initialGame n a = do
-  s <- State.get
+initialGameStore :: Int -> Int -> GameStore
+initialGameStore n a =
   let n' = n - a
       pids = [0..n' - 1]
       aids = [n'..n - 1]
-      hs = dealDeck n deck
-      ps = createPlayers pids (Prelude.take n' hs) [] False
-      ais = createPlayers aids (Prelude.drop n' hs) [] True
-  State.put (G (ps ++ ais) [])
-  return $ ps !! 0
+      hands = dealDeck n deck
+      players = createPlayers pids (Prelude.take n' hands) False
+      ais = createPlayers aids (Prelude.drop n' hands) True in
+  G (players ++ ais) []
   where
-    createPlayers (i : is) (h : hs) ps b = 
-      (P i h Set.empty b) : createPlayers is hs ps b
-    createPlayers _ _ ps _ = ps
+    createPlayers :: [Int] -> [PlayerHand] -> Bool -> [Player]
+    createPlayers (id : ids) (h : hands) b = 
+      (P id h Set.empty b) : createPlayers ids hands b
+    createPlayers _ _ _ = []
+    createCycle :: [Player] -> [Player]
+    createCycle ps = ps ++ createCycle ps
 
 -- | checks if any player has won the game
 checkEnd :: Game -> Bool
