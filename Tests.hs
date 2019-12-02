@@ -140,7 +140,10 @@ unitTests :: Test
 unitTests = TestList [
   testPlayerTurn ~?= True,
   testCheckWin ~?= True,
-  testCheckTie ~?= True  ]
+  testCheckTie ~?= True,
+  testClaimRank ~?= True,
+  testLayOut ~?= True,
+  testCorrectAnswer ~?= True ]
 
 -- unit test for the right person's turn
 testPlayerTurn :: Bool
@@ -164,8 +167,24 @@ testClaimRank :: Bool
 testClaimRank =
   let gs = fakeGameAllCards
       gs2 = claimRank gs (players gs !! 0) Ace in
-  (faceUpCards gs == []) && (size (hand (players gs !! 0)) == 52) &&
+  (ranks (players gs !! 0) == Set.empty) && (size (hand (players gs !! 0)) == 52) &&
   (ranks (players gs2 !! 0) == Set.fromList [Ace]) && (size (hand (players gs2 !! 0)) == 48)
+
+-- unit test to check that cards are laid out correctly
+testLayOut :: Bool
+testLayOut = 
+  let gs  = unshuffledGame
+      card =  Card Ace Heart
+      gs2 = layoutCard gs (players gs !! 0) card in
+  faceUpCards gs == [] &&
+  faceUpCards gs2 == [card] &&
+  size (hand (players gs !! 0)) - 1 == size (hand (players gs2 !! 0))
+
+-- unit test for correct answer when player asks question
+testCorrectAnswer :: Bool
+testCorrectAnswer = True
+
+
 
 -- Helper functions to make writing test cases easier ---
 winState :: GameStore
@@ -238,12 +257,3 @@ fakeGameAllCards =
     createPlayersUnshuffled (id : ids) (h : hands) = 
       (P id h Set.empty False) : createPlayersUnshuffled ids hands
     createPlayersUnshuffled _ _ = []
-
-
--- unit test for correct answer when player asks question
-testCorrectAnswer :: Test
-testCorrectAnswer = TestList []
-
--- unit test to check that ranks are claimed correctly
-testLayOut :: Test
-testLayOut = undefined

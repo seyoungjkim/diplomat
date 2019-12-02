@@ -81,7 +81,8 @@ questionSpecificCard player sequence store = do
         --   _ -> putStrLn ("No, they didn't have " ++ show c)
     _ -> putStrLn "invalid suit or rank" >> go sequence store
 
--- layoutCard :: GameStore -> Player -> Card -> GameStore
+layoutCard :: GameStore -> Player -> Card -> GameStore
+layoutCard = undefined
 -- layoutCard gs p c = let newPlayerHand = Set.delete c (hand player)
 --                         newFaceUp = c : (faceUpCards store)
 --                         allNewPlayers = (P (pid p) newPlayerHand (ranks p) (ai p)) : (List.delete p (players gs)) in
