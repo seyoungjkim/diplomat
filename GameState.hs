@@ -5,20 +5,21 @@ import State (State, get, put)
 import Data.Set as Set
 import Data.Map as Map
 import System.Random
+import Text.Read
 
 -------------------------------------------------------------------------------
 data Card = Card { rank :: Rank, suit :: Suit }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Read)
 
 instance Show Card where
   show c = show (rank c) ++ " of " ++ show (suit c) ++ "s"
 
 data Rank = Ace   | Two  | Three | Four | Five  | Six | Seven 
           | Eight | Nine | Ten   | Jack | Queen | King
-  deriving (Eq, Show, Ord, Enum, Bounded)
+  deriving (Eq, Show, Ord, Enum, Bounded, Read)
 
 data Suit = Diamond | Club | Heart | Spade
-  deriving (Eq, Show, Ord, Enum, Bounded)
+  deriving (Eq, Show, Ord, Enum, Bounded, Read)
 
 data Player = P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool }
   deriving (Eq, Show)
@@ -59,12 +60,16 @@ initialGameStore n a =
     createCycle ps = ps ++ createCycle ps
 
 -- | checks if any player has won the game
-checkEnd :: Game -> Bool
-checkEnd = undefined
+checkEnd :: GameStore -> Bool
+checkEnd gs = check [Ace ..] (players gs) where
+  check :: [Rank] -> [Player] -> Bool
+  check [] _ = True
+  check (r:rs) players =
+    Prelude.foldr (\p acc -> Set.member r (ranks p) || acc) False players && check rs players
 
--- | Automatically lets current player claim ranks
-claimRank :: Player -> GameStore -> GameStore
-claimRank = undefined
+-- -- | Automatically lets current player claim ranks
+-- claimRank :: Player -> GameStore -> GameStore
+-- claimRank = undefined
 
 -- | creates a deck of 52 cards
 deck :: [Card]

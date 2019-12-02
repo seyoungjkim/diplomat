@@ -1,6 +1,7 @@
 {-# OPTIONS -Wincomplete-patterns #-}
 module Question where
 import GameState
+import Text.Read
 
 import qualified State as S
 import qualified Data.Set as Set
@@ -18,6 +19,7 @@ data Question =
   | Lt QInt QInt                   -- ((int)) -> ((int)) -> bool
   | Ge QInt QInt                   -- ((int)) -> ((int)) -> bool
   | Le QInt QInt                   -- ((int)) -> ((int)) -> bool
+--  deriving (Read)
 
 instance Show Question where
   show (SpecificCard c) = "Do you have the " ++ show c ++ "?"
@@ -41,6 +43,7 @@ data QInt =
   | Mod QInt QInt                  -- ((int)) -> ((int)) -> int
   | Product QInt QInt              -- ((int)) -> ((int)) -> int
   | Quotient QInt QInt             -- ((int)) -> ((int)) -> int
+--  deriving (Read)
 
 instance Show QInt where
   show (IntVal i) = show i
@@ -59,6 +62,7 @@ data QHand =
   | Filter (Card -> Bool) QHand    -- (Card -> Bool) -> ((hand)) -> hand
   | UnionHand QHand QHand          -- ((hand)) -> ((hand)) -> hand
   | IntersectionHand QHand QHand   -- ((hand)) -> ((hand)) -> hand
+-- deriving (Read)
   
 instance Show QHand where
   show Hand = "Hand"
@@ -67,6 +71,10 @@ instance Show QHand where
   show (Filter f qh) = "Filter([" ++ (findTrueCard f) ++ "], " ++ show qh ++ ")"
     where findTrueCard :: (Card -> Bool) -> String
           findTrueCard f = foldr (\x acc -> if f x then show x else acc) "N/A" deck
+
+-- instance Read QHand where
+--   readsPrec "Hand" = Hand
+--   readsPrec _ = undefined
 
 -------------------------------------------------------------------------
 -- | returns bool value of a top-level question
@@ -107,3 +115,6 @@ getAnswerHand (IntersectionHand qh1 qh2) h =
   Set.intersection (getAnswerHand qh1 h) (getAnswerHand qh2 h)
 getAnswerHand (Filter f qh) h = 
   Set.filter f (getAnswerHand qh h)
+
+questionParser :: String -> Question
+questionParser = undefined
