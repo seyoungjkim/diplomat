@@ -77,7 +77,7 @@ instance Show QHand where
   show (UnionHand qh1 qh2) = "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (IntersectionHand qh1 qh2) = 
     "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
-  show (Filter f qh) = "Filter([" ++ (findTrueCard f) ++ "], " ++ show qh ++ ")"
+  show (Filter f qh) = "Filter([" ++ findTrueCard f ++ "], " ++ show qh ++ ")"
     where findTrueCard :: (Card -> Bool) -> String
           findTrueCard f = 
             foldr (\x acc -> if f x then show x else acc) "N/A" deck
@@ -105,11 +105,11 @@ getAnswerInt (SumHand qh) h       = foldr plusCard 0 (getAnswerHand qh h)
 getAnswerInt (ProductHand qh) h   = foldr multiplyCard 1 (getAnswerHand qh h)
 getAnswerInt (Sum qi1 qi2) h      = getAnswerInt qi1 h + getAnswerInt qi2 h
 getAnswerInt (Diff qi1 qi2) h     = getAnswerInt qi1 h - getAnswerInt qi2 h
-getAnswerInt (Mod qi1 qi2) h      = case (getAnswerInt qi2 h) of
+getAnswerInt (Mod qi1 qi2) h      = case getAnswerInt qi2 h of
   0 -> 0
   x -> getAnswerInt qi1 h `mod` x
 getAnswerInt (Product qi1 qi2) h  = getAnswerInt qi1 h * getAnswerInt qi2 h
-getAnswerInt (Quotient qi1 qi2) h = case (getAnswerInt qi2 h) of
+getAnswerInt (Quotient qi1 qi2) h = case getAnswerInt qi2 h of
   0 -> 0
   x -> getAnswerInt qi1 h `div` x
 getAnswerInt BlankQInt _          = 0
