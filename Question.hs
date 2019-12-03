@@ -10,7 +10,7 @@ import qualified Data.Maybe as Maybe
 -------------------------------------------------------------------------
 data Question = 
   Blank
-  | SpecificCard Card                -- -> bool
+  | SpecificCard Card              -- -> bool
   | NonEmpty QHand                 -- ((hand)) -> bool
   | Union Question Question        -- ((bool)) -> ((bool)) -> bool
   | Intersection Question Question -- ((bool)) -> ((bool)) -> bool
@@ -28,15 +28,19 @@ instance Show Question where
   show (Union q1 q2) = "(" ++ show q1 ++ ") or (" ++ show q2 ++ ")?"
   show (Intersection q1 q2) = "(" ++ show q1 ++ ") and (" ++ show q2 ++ ")?"
   show (Not q) = "Not (" ++ show q ++ ")"
-  show (Equals qi1 qi2) = "Is (" ++ show qi1 ++ ") equal to (" ++ show qi2 ++ ")?"
-  show (Gt qi1 qi2) = "Is (" ++ show qi1 ++ ") greater than (" ++ show qi2 ++ ")?"
+  show (Equals qi1 qi2) = 
+    "Is (" ++ show qi1 ++ ") equal to (" ++ show qi2 ++ ")?"
+  show (Gt qi1 qi2) = 
+    "Is (" ++ show qi1 ++ ") greater than (" ++ show qi2 ++ ")?"
   show (Lt qi1 qi2) = "Is (" ++ show qi1 ++ ") less than (" ++ show qi2 ++ ")?"
-  show (Ge qi1 qi2) = "Is (" ++ show qi1 ++ ") greater than or equal to (" ++ show qi2 ++ ")?"
-  show (Le qi1 qi2) = "Is (" ++ show qi1 ++ ") less than or equal to (" ++ show qi2 ++ ")?"
+  show (Ge qi1 qi2) = 
+    "Is (" ++ show qi1 ++ ") greater than or equal to (" ++ show qi2 ++ ")?"
+  show (Le qi1 qi2) = 
+    "Is (" ++ show qi1 ++ ") less than or equal to (" ++ show qi2 ++ ")?"
 
 data QInt = 
   BlankQInt
-  | IntVal Int                       -- -> int
+  | IntVal Int                     -- -> int
   | Cardinality QHand              -- ((hand)) -> int
   | SumHand QHand                  -- ((hand)) -> int
   | ProductHand QHand              -- ((hand)) -> int
@@ -56,12 +60,13 @@ instance Show QInt where
   show (Diff qi1 qi2) = "(" ++ show qi1 ++ ") minus (" ++ show qi2 ++ ")" 
   show (Mod qi1 qi2) = "(" ++ show qi1 ++ ") mod (" ++ show qi2 ++ ")" 
   show (Product qi1 qi2) = "(" ++ show qi1 ++ ") times (" ++ show qi2 ++ ")" 
-  show (Quotient qi1 qi2) = "(" ++ show qi1 ++ ") divided by (" ++ show qi2 ++ ")" 
+  show (Quotient qi1 qi2) = 
+    "(" ++ show qi1 ++ ") divided by (" ++ show qi2 ++ ")" 
 
 
 data QHand = 
   BlankQHand
-  | Hand                             -- -> hand
+  | Hand                           -- -> hand
   | Filter (Card -> Bool) QHand    -- (Card -> Bool) -> ((hand)) -> hand
   | UnionHand QHand QHand          -- ((hand)) -> ((hand)) -> hand
   | IntersectionHand QHand QHand   -- ((hand)) -> ((hand)) -> hand
@@ -70,10 +75,12 @@ instance Show QHand where
   show BlankQHand = "_"
   show Hand = "Hand"
   show (UnionHand qh1 qh2) = "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
-  show (IntersectionHand qh1 qh2) = "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
+  show (IntersectionHand qh1 qh2) = 
+    "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (Filter f qh) = "Filter([" ++ (findTrueCard f) ++ "], " ++ show qh ++ ")"
     where findTrueCard :: (Card -> Bool) -> String
-          findTrueCard f = foldr (\x acc -> if f x then show x else acc) "N/A" deck
+          findTrueCard f = 
+            foldr (\x acc -> if f x then show x else acc) "N/A" deck
 
 -------------------------------------------------------------------------
 -- | returns bool value of a top-level question
