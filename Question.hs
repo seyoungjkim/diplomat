@@ -1,6 +1,6 @@
 {-# OPTIONS -Wincomplete-patterns #-}
 module Question where
-import GameState
+import GamePieces
 import Text.Read
 
 import qualified State as S
@@ -9,7 +9,8 @@ import qualified Data.Maybe as Maybe
 
 -------------------------------------------------------------------------
 data Question = 
-  SpecificCard Card                -- -> bool
+  Blank
+  | SpecificCard Card                -- -> bool
   | NonEmpty QHand                 -- ((hand)) -> bool
   | Union Question Question        -- ((bool)) -> ((bool)) -> bool
   | Intersection Question Question -- ((bool)) -> ((bool)) -> bool
@@ -19,9 +20,9 @@ data Question =
   | Lt QInt QInt                   -- ((int)) -> ((int)) -> bool
   | Ge QInt QInt                   -- ((int)) -> ((int)) -> bool
   | Le QInt QInt                   -- ((int)) -> ((int)) -> bool
---  deriving (Read)
 
 instance Show Question where
+  show Blank = "_"
   show (SpecificCard c) = "Do you have the " ++ show c ++ "?"
   show (NonEmpty qh) = "Is the set {" ++ show qh ++ "} empty?"
   show (Union q1 q2) = "(" ++ show q1 ++ ") or (" ++ show q2 ++ ")?"
@@ -34,7 +35,8 @@ instance Show Question where
   show (Le qi1 qi2) = "Is (" ++ show qi1 ++ ") less than or equal to (" ++ show qi2 ++ ")?"
 
 data QInt = 
-  IntVal Int                       -- -> int
+  BlankQInt
+  | IntVal Int                       -- -> int
   | Cardinality QHand              -- ((hand)) -> int
   | SumHand QHand                  -- ((hand)) -> int
   | ProductHand QHand              -- ((hand)) -> int
@@ -43,9 +45,9 @@ data QInt =
   | Mod QInt QInt                  -- ((int)) -> ((int)) -> int
   | Product QInt QInt              -- ((int)) -> ((int)) -> int
   | Quotient QInt QInt             -- ((int)) -> ((int)) -> int
---  deriving (Read)
 
 instance Show QInt where
+  show BlankQInt = "_"
   show (IntVal i) = show i
   show (Cardinality qh) = "the size of {" ++ show qh ++ "}"
   show (SumHand qh) = "the sum of {" ++ show qh ++ "}"
@@ -58,23 +60,20 @@ instance Show QInt where
 
 
 data QHand = 
-  Hand                             -- -> hand
+  BlankQHand
+  | Hand                             -- -> hand
   | Filter (Card -> Bool) QHand    -- (Card -> Bool) -> ((hand)) -> hand
   | UnionHand QHand QHand          -- ((hand)) -> ((hand)) -> hand
   | IntersectionHand QHand QHand   -- ((hand)) -> ((hand)) -> hand
--- deriving (Read)
   
 instance Show QHand where
+  show BlankQHand = "_"
   show Hand = "Hand"
   show (UnionHand qh1 qh2) = "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (IntersectionHand qh1 qh2) = "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (Filter f qh) = "Filter([" ++ (findTrueCard f) ++ "], " ++ show qh ++ ")"
     where findTrueCard :: (Card -> Bool) -> String
           findTrueCard f = foldr (\x acc -> if f x then show x else acc) "N/A" deck
-
--- instance Read QHand where
---   readsPrec "Hand" = Hand
---   readsPrec _ = undefined
 
 -------------------------------------------------------------------------
 -- | returns bool value of a top-level question
@@ -89,6 +88,7 @@ getAnswer (Gt qi1 qi2) h          = getAnswerInt qi1 h > getAnswerInt qi2 h
 getAnswer (Lt qi1 qi2) h          = getAnswerInt qi1 h < getAnswerInt qi2 h
 getAnswer (Ge qi1 qi2) h          = getAnswerInt qi1 h >= getAnswerInt qi2 h
 getAnswer (Le qi1 qi2) h          = getAnswerInt qi1 h <= getAnswerInt qi2 h
+getAnswer Blank _                 = False
   
 -- | returns int value of a question
 getAnswerInt :: QInt -> PlayerHand -> Int
@@ -105,6 +105,7 @@ getAnswerInt (Product qi1 qi2) h  = getAnswerInt qi1 h * getAnswerInt qi2 h
 getAnswerInt (Quotient qi1 qi2) h = case (getAnswerInt qi2 h) of
   0 -> 0
   x -> getAnswerInt qi1 h `div` x
+getAnswerInt BlankQInt _          = 0
   
 -- | returns hand value for a question
 getAnswerHand :: QHand -> PlayerHand -> PlayerHand
@@ -115,6 +116,4 @@ getAnswerHand (IntersectionHand qh1 qh2) h =
   Set.intersection (getAnswerHand qh1 h) (getAnswerHand qh2 h)
 getAnswerHand (Filter f qh) h = 
   Set.filter f (getAnswerHand qh h)
-
-questionParser :: String -> Question
-questionParser = undefined
+getAnswerHand BlankQHand _ = Set.empty

@@ -142,8 +142,7 @@ unitTests = TestList [
   testCheckWin ~?= True,
   testCheckTie ~?= True,
   testClaimRank ~?= True,
-  testLayOut ~?= True,
-  testCorrectAnswer ~?= True ]
+  testLayOut ~?= True ]
 
 -- unit test for the right person's turn
 testPlayerTurn :: Bool
@@ -179,11 +178,6 @@ testLayOut =
   faceUpCards gs == [] &&
   faceUpCards gs2 == [card] &&
   size (hand (players gs !! 0)) - 1 == size (hand (players gs2 !! 0))
-
--- unit test for correct answer when player asks question
-testCorrectAnswer :: Bool
-testCorrectAnswer = True
-
 
 
 -- Helper functions to make writing test cases easier ---

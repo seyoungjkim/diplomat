@@ -1,7 +1,6 @@
 {-# OPTIONS -Wincomplete-patterns #-}
-module GameState where
+module GamePieces where
 
-import State (State, get, put)
 import Data.Set as Set
 import Data.Map as Map
 import System.Random
@@ -26,46 +25,12 @@ data Player = P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool 
 
 type PlayerHand = Set Card
 
--- Game represented as a GameStore and current player
-type Game = State GameStore [Player]
-
-data GameStore = G { players :: [Player], faceUpCards :: [Card] }
-
-instance Show GameStore where
-  show = undefined
-
 -------------------------------------------------------------------------------
 plusCard :: Card -> Int -> Int
 plusCard c i = fromEnum (rank c) + 1 + i
 
 multiplyCard :: Card -> Int -> Int
 multiplyCard c i = (fromEnum (rank c) + 1) * i
-
--- | initializes game given the number of total players and AIs
-initialGameStore :: Int -> Int -> GameStore
-initialGameStore n a =
-  let n' = n - a
-      pids = [0..n' - 1]
-      aids = [n'..n - 1]
-      hands = dealDeck n deck
-      players = createPlayers pids (Prelude.take n' hands) False
-      ais = createPlayers aids (Prelude.drop n' hands) True in
-  G (players ++ ais) []
-  where
-    createPlayers :: [Int] -> [PlayerHand] -> Bool -> [Player]
-    createPlayers (id : ids) (h : hands) b = 
-      (P id h Set.empty b) : createPlayers ids hands b
-    createPlayers _ _ _ = []
-    createCycle :: [Player] -> [Player]
-    createCycle ps = ps ++ createCycle ps
-
--- | checks if any player has won the game
-checkEnd :: GameStore -> Bool
-checkEnd gs = check [Ace ..] (players gs) where
-  check :: [Rank] -> [Player] -> Bool
-  check [] _ = True
-  check (r:rs) players =
-    Prelude.foldr (\p acc -> Set.member r (ranks p) || acc) False players && check rs players
 
 -- -- | Automatically lets current player claim ranks
 -- claimRank :: Player -> GameStore -> GameStore

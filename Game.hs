@@ -1,41 +1,72 @@
 {-# OPTIONS -Wincomplete-patterns #-}
 module Game where
+
 import qualified State as S
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Map as Map
 import Text.Read
 import Question
-import GameState
+import BuildQuestion
+import GamePieces
+
+-- Game represented as a GameStore and current player
+type Game = S.State GameStore [Player]
+
+data GameStore = G { players :: Map Int Player, faceUpCards :: [Card], currQuestion :: Question }
+
+instance Show GameStore where
+  show = undefined
 
 -------------------------------------------------------------------------------
+
+-- | initializes game given the number of total players and AIs
+initialGameStore :: Int -> Int -> GameStore
+initialGameStore n a =
+  let n' = n - a
+      pids = [0..n' - 1]
+      aids = [n'..n - 1]
+      hands = dealDeck n deck
+      players = createPlayers pids (Prelude.take n' hands) False
+      ais = createPlayers aids (Prelude.drop n' hands) True in
+  G (Map.union players ais) [] Blank
+  where
+    createPlayers :: [Int] -> [PlayerHand] -> Bool -> Map Int Player
+    createPlayers (id : ids) (h : hands) b = 
+      Map.insert id (P id h Set.empty b) (createPlayers ids hands b)
+    createPlayers _ _ _ = Map.empty
+    createCycle :: [Player] -> [Player]
+    createCycle ps = ps ++ createCycle ps
+
+-- | checks if any player has won the game
+checkEnd :: GameStore -> Bool
+checkEnd gs = check [Ace ..] (players gs) where
+  check :: [Rank] -> Map Int Player -> Bool
+  check [] _ = True
+  check (r:rs) players =
+    Map.foldr (\p acc -> Set.member r (ranks p) || acc) False players && check rs players
 
 -- | displays game statistics once the game ends
 displayEnd :: Game -> IO ()
 displayEnd = undefined
 
--- | query the current player for a question about another player
-getQuestion :: Game -> Player -> IO Question
-getQuestion = undefined
-
--- | answers player's question and displays answer
-displayAnswer :: Question -> Player -> IO Bool
-displayAnswer = undefined
-
 -- | make moves until someone wins
 -- TODO: restrict arguments
 main :: Int -> Int -> IO ()
 main numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
-                            sequence = players initialStore in
+                            sequence = elems $ players initialStore in
   go sequence initialStore
 
 go :: [Player] -> GameStore -> IO ()
 go sequence store = 
   let (sequence', store') = S.runState (move sequence) store in do
     let player = sequence !! 0
-    let pids = foldr (\p acc -> (pid p) : acc) [] (players store)
+    putStrLn ("Hi Player " ++ (show $ pid player) ++ "!! :)")
     putStrLn ("Laid out cards:")
     putStrLn (show $ faceUpCards store)
+    putStrLn ("Your current claimed ranks:")
+    putStrLn (show $ ranks player)
     putStrLn ("Your hand:")
     putStrLn (show $ hand player)
     putStrLn ("Do you want to claim any rank? Please enter y or n:")
@@ -43,50 +74,38 @@ go sequence store =
     if (rankToClaim == "y") then claimRankIO store player
     else putStrLn ("Ok, please ask a player a question now.")
     putStr ("Player " ++ (show $ pid player) ++ ": Enter a player id> ")
-    playerToQuestion <- getLine
-    case (readMaybe playerToQuestion :: Maybe Int) of
-      Just i -> if elem i pids then
-                  let player' = sequence !! i in do
-                    -- TODO: how to get the right player since seq changes?
-                      -- idea: maybe each player sees the players clockwise from 
-                      -- him as 1,2,3 since their relative order won't change?
-                    putStrLn ("Player " ++ (show $ pid player) ++ ": Enter a question> ")
-                    putStrLn questionOptions
-                    q <- getLine
-                    case q of
-                      "1" -> questionSpecificCard player' sequence store >> go sequence' store'
-                      "q" -> return () -- quit the game
-                      "none" -> go sequence' store' -- skip turn
-                      _   -> putStrLn "invalid question" >> go sequence store -- unknown command
-                else putStrLn "please enter a valid player id" >> go sequence store
-      Nothing -> putStrLn "please enter a player id" >> go sequence store
+    playerIdToQuestion <- getLine
+    case (readMaybe playerIdToQuestion :: Maybe Int) of
+      Just i -> case Map.lookup i (players store) of
+        Just playerToQuestion -> do
+          putStrLn ("Player " ++ (show $ pid player) ++ ": Enter a question> ")
+          putStrLn questionOptions
+          q <- getLine
+          case q of
+            "1" -> questionSpecificCard playerToQuestion sequence store >> go sequence' store'
+            "q" -> return () -- quit the game
+            "none" -> go sequence' store' -- skip turn
+            _   -> putStrLn "invalid question" >> go sequence store -- unknown command
+        Nothing -> putStrLn "please enter a valid player id" >> go sequence store
+      Nothing -> putStrLn "please enter an integer player id" >> go sequence store
 
 questionSpecificCard :: Player -> [Player] -> GameStore -> IO ()
 questionSpecificCard player sequence store = do
-  putStrLn "Enter a suit: Diamond, Club, Heart, or Spade."
-  suit <- getLine
   putStrLn "Enter a rank."
   rank <- getLine
+  putStrLn "Enter a suit: Diamond, Club, Heart, or Spade."
+  suit <- getLine
   case (readMaybe suit :: Maybe Suit, readMaybe rank :: Maybe Rank) of
     (Just s, Just r) ->
       let c = (Card r s)
           q = SpecificCard c
           a =  getAnswer q (hand player) in
         putStrLn (show (q :: Question)) >>
-        putBool a >>
-        putStrLn "========================================"
-        -- case a of
-        --   True -> let gs' = layoutCard store player c in
-        --           go (sequence gs) gs'
-        --   _ -> putStrLn ("No, they didn't have " ++ show c)
+        case a of
+          True -> let gs' = layoutCard store player c in
+                  putStrLn ("Yes, they had " ++ show c) >> go sequence gs'
+          _ -> putStrLn ("No, they didn't have " ++ show c)
     _ -> putStrLn "invalid suit or rank" >> go sequence store
-
-layoutCard :: GameStore -> Player -> Card -> GameStore
-layoutCard = undefined
--- layoutCard gs p c = let newPlayerHand = Set.delete c (hand player)
---                         newFaceUp = c : (faceUpCards store)
---                         allNewPlayers = (P (pid p) newPlayerHand (ranks p) (ai p)) : (List.delete p (players gs)) in
---   G allNewPlayers newFaceUp
 
 putBool :: Bool -> IO ()
 putBool True = putStrLn "Yes"
@@ -131,40 +150,40 @@ questionHandOptions = "1: Hand \n \
 
 claimRankIO :: GameStore -> Player -> IO ()
 claimRankIO gs p = do
-  putStrLn ("Please enter a valid rank (1-13):")
+  putStrLn ("Please enter a valid rank:")
   rank <- getLine
   case (readMaybe rank :: Maybe Rank) of
     Just r -> 
       let gs' = claimRank gs p r in
-      go (players gs) gs'
-    _ -> putStrLn ("Please enter a valid rank (1-13):") >>
+      go (elems $ players gs) gs'
+    _ -> putStrLn ("Please enter a valid rank:") >>
          claimRankIO gs p
 
+-- THIS IS BROKEN!!!! not getting put into player ranks :(
+-- need to add io message about claiming ranks
 claimRank :: GameStore -> Player -> Rank -> GameStore
-claimRank gs p r = let playerRanks = filter (\c -> rank c == r) (Set.toList $ hand p)
-                       laidOutRanks = filter (\c -> rank c == r) (faceUpCards gs) in
+claimRank gs p r = let playerRanks = Prelude.filter (\c -> rank c == r) (Set.toList $ hand p)
+                       laidOutRanks = Prelude.filter (\c -> rank c == r) (faceUpCards gs) in
   if (length playerRanks + length laidOutRanks == 4) then
-    let newPlayerHand = foldr (\c acc -> Set.delete c acc) (hand p) playerRanks
-        newLaidOut = foldr (\c acc -> List.delete c acc) (faceUpCards gs) laidOutRanks
+    let newPlayerHand = Prelude.foldr (\c acc -> Set.delete c acc) (hand p) playerRanks
+        newLaidOut = Prelude.foldr (\c acc -> List.delete c acc) (faceUpCards gs) laidOutRanks
         playerClaimedRanks = Set.insert r (ranks p)
-        allNewPlayers = (P (pid p) newPlayerHand playerClaimedRanks (ai p)) : (List.delete p (players gs)) in
-    G allNewPlayers newLaidOut
-  else gs       
+        updatedPlayer = P (pid p) newPlayerHand playerClaimedRanks (ai p)
+        newPlayerMap = Map.insert (pid p) updatedPlayer (players gs) in
+    G newPlayerMap newLaidOut Blank       
+  else gs   
+
+-- layoutCardIO :: GameStore -> Player -> Card -> IO ()
+-- layoutCardIO gs p c = undefined
+
+layoutCard :: GameStore -> Player -> Card -> GameStore
+layoutCard gs p c = let newPlayerHand = Set.delete c (hand p)
+                        newFaceUp = c : (faceUpCards gs)
+                        updatedPlayer = P (pid p) newPlayerHand (ranks p) (ai p)
+                        newPlayerMap = Map.insert (pid p) updatedPlayer (players gs) in
+  G newPlayerMap newFaceUp Blank
 
 move :: [Player] -> Game
 move [] = return []
 move (x:xs) = do
   return (xs ++ [x])
-
--- questionBuilder :: Player -> [Player] -> GameStore -> IO()
--- questionBuilder player sequence store = do
---   putStrLn questionOptions
---   q <- getLine
---   case q of
---     "1" -> questionSpecificCard player sequence store -- specific card
---     "2" -> NotEmpty () -- non-empty
---     "q" -> return () -- quit the game
---     "none" -> go sequence' store' -- skip turn
---     _   -> putStrLn "invalid question" >> go sequence store -- unknown command
-
--- --questionHandBuilder :: GameStore -> IO()
