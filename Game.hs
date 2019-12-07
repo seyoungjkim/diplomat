@@ -135,6 +135,19 @@ questionOptions = "1: Specific card \n \
                   \done: finish the question \n \
                   \none: skip your turn"
 
+questionOptions2 :: Question ->  String  
+questionOptions2 q = "So far your question is " ++ show q ++ ". Choose one:  \n \
+                  \1: Non-empty (hand) \n \
+                  \2: Union (question) (question) \n \
+                  \3: Intersection (question) (question) \n \
+                  \4: Not (question) \n \
+                  \5: Equals (int) (int) \n \
+                  \6: Greater than (int) (int) \n \
+                  \7: Less than (int) (int) \n \
+                  \8: Greater than or equal to (int) (int) \n \
+                  \9: Less than or equal to (int) (int)"
+                  
+
 questionIntOptions :: String  
 questionIntOptions = "1: IntVal \n \
                      \2: Cardinality \n \
@@ -197,18 +210,37 @@ layoutCard gs p c = let newPlayerHand = Set.delete c (hand p)
                         newPlayerMap = Map.insert (pid p) updatedPlayer (players gs) in
   G newPlayerMap newFaceUp Blank
 
-buildQuestion :: GameStore -> IO ()
-buildQuestion gs = let currQ = currQuestion gs in 
+createQuestion :: GameStore -> IO ()
+createQuestion gs = let currQ = currQuestion gs in 
   case findBlank currQ of
-    1 -> buildMainQuestion
-    2 -> buildIntQuestion
-    3 -> buildHandQuestion
+    1 -> createQuestionMain
+    2 -> createQuestionInt
+    3 -> createQuestionBool
     _ -> putStr "" -- this is still dumb
-  where buildMainQuestion = undefined
-        buildIntQuestion = undefined
-        buildHandQuestion = undefined
+  where createQuestionMain = do putStrLn (questionOptions2 (currQuestion gs ))
+                                input <- getLine
+                                case readQuestionOptions2 input of
+                                  Nothing -> do putStrLn "Invalid input, try again!"
+                                                createQuestionMain
+                                  Just q -> case buildQuestion (currQuestion gs) q of 
+                                    Nothing -> undefined -- should be unreachable
+                                    Just newQ -> createQuestion (gs {currQuestion = newQ})
+        createQuestionInt = undefined
+        createQuestionBool = undefined
 
- 
+readQuestionOptions2 :: String -> Maybe Question
+readQuestionOptions2 s = 
+  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
+    Just 1 -> Just $ NonEmpty BlankQHand
+    Just 2 -> Just $ Union Blank Blank
+    Just 3 -> Just $ Intersection Blank Blank
+    Just 4 -> Just $ Not Blank
+    Just 5 -> Just $ Equals BlankQInt BlankQInt
+    Just 6 -> Just $ Gt BlankQInt BlankQInt
+    Just 7 -> Just $ Lt BlankQInt BlankQInt
+    Just 8 -> Just $ Ge BlankQInt BlankQInt
+    Just 9 -> Just $ Le BlankQInt BlankQInt
+    _ -> Nothing
 
 move :: [Int] -> Game
 move [] = return []
