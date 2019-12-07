@@ -194,3 +194,80 @@ buildQuestionWithQHand'' (IntersectionHand qh1 qh2) qh = case buildQuestionWithQ
         Just qh2' -> Just $ IntersectionHand qh1 qh2'
         Nothing -> Nothing
 buildQuestionWithQHand'' _ _ = Nothing
+
+
+-- returning 0 for no blank, 1 for Blank, 2 for BlankQInt, 3 for BlankQHand
+-- should think about changing this
+findBlank :: Question -> Int
+findBlank Blank = 1
+findBlank (NonEmpty qh) = findBlankHand qh
+findBlank (Union q1 q2) = 
+  case findBlank q1 of
+    0 -> findBlank q2
+    x -> x
+findBlank (Intersection q1 q2) =
+  case findBlank q1 of
+    0 -> findBlank q2
+    x -> x
+findBlank (Not q) = findBlank q
+findBlank (Equals q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlank (Gt q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlank (Ge q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlank (Lt q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlank (Le q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlank (SpecificCard _) = 0
+
+findBlankInt :: QInt -> Int
+findBlankInt BlankQInt = 2
+findBlankInt (Cardinality qh) = findBlankHand qh
+findBlankInt (SumHand qh) = findBlankHand qh
+findBlankInt (ProductHand qh) = findBlankHand qh
+findBlankInt (Sum q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlankInt (Diff q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlankInt (Mod q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlankInt (Product q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlankInt (Quotient q1 q2) = 
+  case findBlankInt q1 of
+    0 -> findBlankInt q2
+    x -> x
+findBlankInt (IntVal _) = 0
+
+findBlankHand :: QHand -> Int
+findBlankHand BlankQHand = 3
+findBlankHand (Filter _ qh) = findBlankHand qh
+findBlankHand (UnionHand q1 q2) = 
+  case findBlankHand q1 of
+    0 -> findBlankHand q2
+    x -> x
+findBlankHand (IntersectionHand q1 q2) = 
+  case findBlankHand q1 of
+    0 -> findBlankHand q2
+    x -> x
+findBlankHand Hand = 0

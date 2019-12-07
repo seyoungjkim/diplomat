@@ -12,7 +12,7 @@ import BuildQuestion
 import GamePieces
 
 -- Game represented as a GameStore and current player
-type Game = S.State GameStore [Player]
+type Game = S.State GameStore [Int]
 
 data GameStore = G { players :: Map Int Player, faceUpCards :: [Card], currQuestion :: Question }
 
@@ -55,24 +55,34 @@ displayEnd = undefined
 -- TODO: restrict arguments
 main :: Int -> Int -> IO ()
 main numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
-                            sequence = elems $ players initialStore in
-  go sequence initialStore
+                            sequence = [0..numPlayers + numAI] in
+  goIntro sequence initialStore
 
-go :: [Player] -> GameStore -> IO ()
-go sequence store = 
-  let (sequence', store') = S.runState (move sequence) store in do
-    let player = sequence !! 0
-    putStrLn ("Hi Player " ++ (show $ pid player) ++ "!! :)")
+goIntro :: [Int] -> GameStore -> IO ()
+goIntro sequence store = 
+  let player = (players store) ! (sequence !! 0) in do
+    putStrLn ("\nHi Player " ++ (show $ pid player) ++ "!! :)")
+    putStrLn ("Curr claimed ranks:")
+    putStrLn (show $ (players store))
     putStrLn ("Laid out cards:")
     putStrLn (show $ faceUpCards store)
     putStrLn ("Your current claimed ranks:")
-    putStrLn (show $ ranks player)
+    putStrLn (show $ Set.toList (ranks player))
     putStrLn ("Your hand:")
     putStrLn (show $ hand player)
-    putStrLn ("Do you want to claim any rank? Please enter y or n:")
-    rankToClaim <- getLine
-    if (rankToClaim == "y") then claimRankIO store player
-    else putStrLn ("Ok, please ask a player a question now.")
+    goClaim sequence store
+
+goClaim :: [Int] -> GameStore -> IO ()
+goClaim sequence store =
+  let player = (players store) ! (sequence !! 0) in do
+    claimRankIO store player sequence
+    goQuestion sequence store
+
+goQuestion :: [Int] -> GameStore -> IO ()
+goQuestion sequence store = 
+  let (sequence', _) = S.runState (move sequence) store in do
+    let player = (players store) ! (sequence !! 0)
+    putStrLn ("Ok, please ask a player a question now.")
     putStr ("Player " ++ (show $ pid player) ++ ": Enter a player id> ")
     playerIdToQuestion <- getLine
     case (readMaybe playerIdToQuestion :: Maybe Int) of
@@ -82,14 +92,14 @@ go sequence store =
           putStrLn questionOptions
           q <- getLine
           case q of
-            "1" -> questionSpecificCard playerToQuestion sequence store >> go sequence' store'
+            "1" -> questionSpecificCard playerToQuestion sequence store
             "q" -> return () -- quit the game
-            "none" -> go sequence' store' -- skip turn
-            _   -> putStrLn "invalid question" >> go sequence store -- unknown command
-        Nothing -> putStrLn "please enter a valid player id" >> go sequence store
-      Nothing -> putStrLn "please enter an integer player id" >> go sequence store
+            "none" -> goIntro sequence' store -- skip turn
+            _   -> putStrLn "invalid question" >> goQuestion sequence store -- unknown command
+        Nothing -> putStrLn "please enter a valid player id" >> goQuestion sequence store
+      Nothing -> putStrLn "please enter an integer player id" >> goQuestion sequence store
 
-questionSpecificCard :: Player -> [Player] -> GameStore -> IO ()
+questionSpecificCard :: Player -> [Int] -> GameStore -> IO ()
 questionSpecificCard player sequence store = do
   putStrLn "Enter a rank."
   rank <- getLine
@@ -103,9 +113,9 @@ questionSpecificCard player sequence store = do
         putStrLn (show (q :: Question)) >>
         case a of
           True -> let gs' = layoutCard store player c in
-                  putStrLn ("Yes, they had " ++ show c) >> go sequence gs'
+                  putStrLn ("Yes, they had " ++ show c) >> goClaim sequence gs'
           _ -> putStrLn ("No, they didn't have " ++ show c)
-    _ -> putStrLn "invalid suit or rank" >> go sequence store
+    _ -> putStrLn "invalid suit or rank" >> goQuestion sequence store
 
 putBool :: Bool -> IO ()
 putBool True = putStrLn "Yes"
@@ -148,16 +158,20 @@ questionHandOptions = "1: Hand \n \
                       \done: finish the question \n \
                       \none: skip your turn"
 
-claimRankIO :: GameStore -> Player -> IO ()
-claimRankIO gs p = do
-  putStrLn ("Please enter a valid rank:")
-  rank <- getLine
-  case (readMaybe rank :: Maybe Rank) of
-    Just r -> 
-      let gs' = claimRank gs p r in
-      go (elems $ players gs) gs'
-    _ -> putStrLn ("Please enter a valid rank:") >>
-         claimRankIO gs p
+claimRankIO :: GameStore -> Player -> [Int] -> IO ()
+claimRankIO gs p sequence = do
+  putStrLn "Do you want to claim a rank?"
+  claimYN <- getLine
+  if (claimYN == "y") then do
+    putStrLn "Please enter a valid rank:"
+    rank <- getLine
+    case (readMaybe rank :: Maybe Rank) of
+      Just r -> 
+        let gs' = claimRank gs p r in
+        goClaim sequence gs'
+      _ -> putStrLn "Please enter a valid rank:" >>
+          claimRankIO gs p sequence
+  else putStr "" -- this is dumb
 
 -- THIS IS BROKEN!!!! not getting put into player ranks :(
 -- need to add io message about claiming ranks
@@ -183,7 +197,20 @@ layoutCard gs p c = let newPlayerHand = Set.delete c (hand p)
                         newPlayerMap = Map.insert (pid p) updatedPlayer (players gs) in
   G newPlayerMap newFaceUp Blank
 
-move :: [Player] -> Game
+buildQuestion :: GameStore -> IO ()
+buildQuestion gs = let currQ = currQuestion gs in 
+  case findBlank currQ of
+    1 -> buildMainQuestion
+    2 -> buildIntQuestion
+    3 -> buildHandQuestion
+    _ -> putStr "" -- this is still dumb
+  where buildMainQuestion = undefined
+        buildIntQuestion = undefined
+        buildHandQuestion = undefined
+
+ 
+
+move :: [Int] -> Game
 move [] = return []
 move (x:xs) = do
   return (xs ++ [x])

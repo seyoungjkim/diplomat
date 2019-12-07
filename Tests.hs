@@ -1,6 +1,6 @@
 {-# OPTIONS -Wincomplete-patterns #-}
 module Tests where
-import GameState
+import GamePieces
 import Question
 import Game
 import Data.Set as Set
@@ -168,6 +168,8 @@ testClaimRank =
       gs2 = claimRank gs (players gs !! 0) Ace in
   (ranks (players gs !! 0) == Set.empty) && (size (hand (players gs !! 0)) == 52) &&
   (ranks (players gs2 !! 0) == Set.fromList [Ace]) && (size (hand (players gs2 !! 0)) == 48)
+
+-- write test for ranks being claimed with laid out cards
 
 -- unit test to check that cards are laid out correctly
 testLayOut :: Bool
