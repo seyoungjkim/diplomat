@@ -124,3 +124,89 @@ getAnswerHand (IntersectionHand qh1 qh2) h =
 getAnswerHand (Filter f qh) h = 
   Set.filter f (getAnswerHand qh h)
 getAnswerHand BlankQHand _ = Set.empty
+
+------------------------ Question Options for Building ------------------------
+
+questionOptionsInitial :: String  
+questionOptionsInitial = "1: Ask for a specific card \n \
+                  \2: Non-empty (hand) \n \
+                  \3: Union (question) (question) \n \
+                  \4: Intersection (question) (question) \n \
+                  \5: Not (question) \n \
+                  \6: Equals (int) (int) \n \
+                  \7: Greater than (int) (int) \n \
+                  \8: Less than (int) (int) \n \
+                  \9: Greater than or equal to (int) (int) \n \
+                  \10: Less than or equal to (int) (int) \n \
+                  \none: skip your turn"
+
+questionOptionsBuilding :: Question ->  String  
+questionOptionsBuilding q = "So far your question is " ++ show q ++ ". Choose one:  \n \
+                  \1: Non-empty (hand) \n \
+                  \2: Union (question) (question) \n \
+                  \3: Intersection (question) (question) \n \
+                  \4: Not (question) \n \
+                  \5: Equals (int) (int) \n \
+                  \6: Greater than (int) (int) \n \
+                  \7: Less than (int) (int) \n \
+                  \8: Greater than or equal to (int) (int) \n \
+                  \9: Less than or equal to (int) (int)"
+
+readQuestionOptionsBuilding :: String -> Maybe Question
+readQuestionOptionsBuilding s = 
+  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
+    Just 1 -> Just $ NonEmpty BlankQHand
+    Just 2 -> Just $ Union Blank Blank
+    Just 3 -> Just $ Intersection Blank Blank
+    Just 4 -> Just $ Not Blank
+    Just 5 -> Just $ Equals BlankQInt BlankQInt
+    Just 6 -> Just $ Gt BlankQInt BlankQInt
+    Just 7 -> Just $ Lt BlankQInt BlankQInt
+    Just 8 -> Just $ Ge BlankQInt BlankQInt
+    Just 9 -> Just $ Le BlankQInt BlankQInt
+    _ -> Nothing
+                  
+questionIntOptions :: Question -> String  
+questionIntOptions q = "So far your question is " ++ show q ++ ". Choose one:  \n \
+                     \1: Integer \n \
+                     \2: Cardinality (hand) \n \
+                     \3: SumHand (hand) \n \
+                     \4: ProductHand (hand) \n \
+                     \5: Sum (int) (int) \n \
+                     \6: Diff (int) (int) \n \
+                     \7: Mod (int) (int) \n \
+                     \8: Product (int) (int) \n \
+                     \9: Quotient (int) (int)"
+
+readQuestionIntOptions :: String -> Maybe QInt
+readQuestionIntOptions s = 
+  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
+    Just 1 -> Just $ IntVal 0
+    Just 2 -> Just $ Cardinality BlankQHand
+    Just 3 -> Just $ SumHand BlankQHand
+    Just 4 -> Just $ ProductHand BlankQHand
+    Just 5 -> Just $ Sum BlankQInt BlankQInt
+    Just 6 -> Just $ Diff BlankQInt BlankQInt
+    Just 7 -> Just $ Mod BlankQInt BlankQInt
+    Just 8 -> Just $ Product BlankQInt BlankQInt
+    Just 9 -> Just $ Quotient BlankQInt BlankQInt
+    _ -> Nothing
+
+-- TODO: how to have user input filter?
+  -- I think they can create filters for each individual suit or rank for now?
+  -- And then they can just combine them themselves?
+questionHandOptions :: Question -> String
+questionHandOptions q = "So far your question is " ++ show q ++ ". Choose one:  \n \
+                      \1: Player's hand \n \
+                      \2: Filter (filter function) (hand) \n \
+                      \3: UnionHand (hand) (hand) \n \
+                      \4: IntersectionHand (hand) (hand)"
+
+readQuestionHandOptions :: String -> Maybe QHand
+readQuestionHandOptions s = 
+  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
+    Just 1 -> Just $ Hand
+    Just 2 -> Just $ Filter (\c -> True) BlankQHand
+    Just 3 -> Just $ UnionHand BlankQHand BlankQHand
+    Just 4 -> Just $ IntersectionHand BlankQHand BlankQHand
+    _ -> Nothing

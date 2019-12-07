@@ -5,7 +5,7 @@ import Question
 import Game
 import Data.Set as Set
 import Control.Monad (liftM,liftM2,liftM3)
-
+import Data.Map as Map
 import Test.HUnit
 import Test.QuickCheck
 import qualified State as S
@@ -107,7 +107,7 @@ instance Arbitrary QHand where
   shrink (UnionHand qh1 qh2) = [qh1, qh2]
   shrink (IntersectionHand qh1 qh2) = [qh1, qh2]
   shrink (Filter _ qh) = [qh]
-  shrink Hand = []
+  shrink _ = []
   
 instance CoArbitrary Card where
   coarbitrary c = variant $ fromEnum (suit c) * 13 + fromEnum (rank c)
@@ -141,6 +141,7 @@ unitTests = TestList [
   testPlayerTurn ~?= True,
   testCheckWin ~?= True,
   testCheckTie ~?= True,
+  testClaimRankLayOut ~?= True,
   testClaimRank ~?= True,
   testLayOut ~?= True ]
 
@@ -148,9 +149,9 @@ unitTests = TestList [
 testPlayerTurn :: Bool
 testPlayerTurn = 
   let gs = initialGameStore 4 0
-      firstPlayerId = pid ((players gs) !! 0)
-      (ps2, gs2) = S.runState (move (players gs)) gs
-      secondPlayerId = pid (ps2 !! 0) in
+      firstPlayerId = pid (players gs ! 0)
+      (ps2, gs2) = S.runState (move (Map.keys (players gs))) gs
+      secondPlayerId = ps2 !! 0 in
   firstPlayerId == 0 && secondPlayerId == 1
 
 -- unit test for the end game where a player wins
@@ -165,24 +166,35 @@ testCheckTie = checkEnd tieState
 testClaimRank :: Bool
 testClaimRank =
   let gs = fakeGameAllCards
-      gs2 = claimRank gs (players gs !! 0) Ace in
-  (ranks (players gs !! 0) == Set.empty) && (size (hand (players gs !! 0)) == 52) &&
-  (ranks (players gs2 !! 0) == Set.fromList [Ace]) && (size (hand (players gs2 !! 0)) == 48)
+      gs2 = claimRank gs (players gs ! 0) Ace in
+  (ranks (players gs ! 0) == Set.empty) && (Set.size (hand (players gs ! 0)) == 52) &&
+  (ranks (players gs2 ! 0) == Set.fromList [Ace]) && (Set.size (hand (players gs2 ! 0)) == 48)
 
 -- write test for ranks being claimed with laid out cards
-
+testClaimRankLayOut :: Bool
+testClaimRankLayOut = 
+  let gs  = unshuffledGame
+      card =  Card Ace Heart
+      gs2 = layoutCard gs (players gs ! 0) card
+      gs3 = claimRank gs2 (players gs2 ! 0) Ace in
+  (faceUpCards gs == []) &&
+  (faceUpCards gs2 == [card]) &&
+  (faceUpCards gs3 == []) &&
+  (Set.size (hand (players gs ! 0)) - 4 == Set.size (hand (players gs3 ! 0))) &&
+  (ranks (players gs3 ! 0) == Set.fromList [Ace]) 
+  
 -- unit test to check that cards are laid out correctly
 testLayOut :: Bool
 testLayOut = 
   let gs  = unshuffledGame
       card =  Card Ace Heart
-      gs2 = layoutCard gs (players gs !! 0) card in
+      gs2 = layoutCard gs (players gs ! 0) card in
   faceUpCards gs == [] &&
   faceUpCards gs2 == [card] &&
-  size (hand (players gs !! 0)) - 1 == size (hand (players gs2 !! 0))
+  Set.size (hand (players gs ! 0)) - 1 == Set.size (hand (players gs2 ! 0))
 
 
--- Helper functions to make writing test cases easier ---
+-------------- Helper functions to make writing test cases easier -------------
 winState :: GameStore
 winState = 
   let n' = 4
@@ -190,12 +202,12 @@ winState =
       ranks = [Set.fromList [Ace ..Six], Set.fromList [Seven ..Queen], 
                Set.fromList [King], Set.empty]
       players = createPlayersWin pids ranks in
-  G players []
+  G players [] Blank
   where
-    createPlayersWin :: [Int] -> [Set Rank] -> [Player]
+    createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
-      (P id Set.empty r False) : createPlayersWin ids ranks
-    createPlayersWin _ _ = [] 
+      Map.insert id (P id Set.empty r False) (createPlayersWin ids ranks)
+    createPlayersWin _ _ = Map.empty
 
 tieState :: GameStore
 tieState =
@@ -203,12 +215,12 @@ tieState =
       pids = [0..3]
       ranks = [Set.fromList [Ace ..], Set.empty, Set.empty, Set.empty]
       players = createPlayersWin pids ranks in
-  G players []
+  G players [] Blank
   where
-    createPlayersWin :: [Int] -> [Set Rank] -> [Player]
+    createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
-      (P id Set.empty r False) : createPlayersWin ids ranks
-    createPlayersWin _ _ = [] 
+      Map.insert id (P id Set.empty r False) (createPlayersWin ids ranks)
+    createPlayersWin _ _ = Map.empty
 
 -- p1 has all diamonds, p2 has all clubs, p3 has all hearts, p4 has all spades
 unshuffledGame :: GameStore
@@ -217,12 +229,12 @@ unshuffledGame =
       pids = [0..3]
       hands = dealDeckUnshuffled n' deck
       players = createPlayersUnshuffled pids (Prelude.take n' hands) in
-  G players []
+  G players [] Blank
   where
-    createPlayersUnshuffled :: [Int] -> [PlayerHand] -> [Player]
+    createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
-      (P id h Set.empty False) : createPlayersUnshuffled ids hands
-    createPlayersUnshuffled _ _ = []
+      Map.insert id (P id h Set.empty False) (createPlayersUnshuffled ids hands)
+    createPlayersUnshuffled _ _ = Map.empty
 
 
 -- | shuffle and deal deck to given number of players
@@ -247,9 +259,10 @@ fakeGameAllCards =
       pids = [0..3]
       hands = [Set.fromList deck, Set.empty, Set.empty, Set.empty]
       players = createPlayersUnshuffled pids (Prelude.take n' hands) in
-  G players []
+  G players [] Blank
   where
-    createPlayersUnshuffled :: [Int] -> [PlayerHand] -> [Player]
+    createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
-      (P id h Set.empty False) : createPlayersUnshuffled ids hands
-    createPlayersUnshuffled _ _ = []
+      Map.insert id (P id h Set.empty False) (createPlayersUnshuffled ids hands)
+    createPlayersUnshuffled _ _ = Map.empty
+

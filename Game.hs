@@ -89,7 +89,7 @@ goQuestion sequence store =
       Just i -> case Map.lookup i (players store) of
         Just playerToQuestion -> do
           putStrLn ("Player " ++ (show $ pid player) ++ ": Enter a question> ")
-          putStrLn questionOptions
+          putStrLn questionOptionsInitial
           q <- getLine
           case q of
             "1" -> questionSpecificCard playerToQuestion sequence store
@@ -120,56 +120,6 @@ questionSpecificCard player sequence store = do
 putBool :: Bool -> IO ()
 putBool True = putStrLn "Yes"
 putBool False = putStrLn "No"
-          
-questionOptions :: String  
-questionOptions = "1: Specific card \n \
-                  \2: Non-empty \n \
-                  \3: Union \n \
-                  \4: Intersection \n \
-                  \5: Not \n \
-                  \6: Equals \n \
-                  \7: Greater than \n \
-                  \8: Less than \n \
-                  \9: Greater than or equal to \n \
-                  \10: Greater than or equal to \n \
-                  \done: finish the question \n \
-                  \none: skip your turn"
-
-questionOptions2 :: Question ->  String  
-questionOptions2 q = "So far your question is " ++ show q ++ ". Choose one:  \n \
-                  \1: Non-empty (hand) \n \
-                  \2: Union (question) (question) \n \
-                  \3: Intersection (question) (question) \n \
-                  \4: Not (question) \n \
-                  \5: Equals (int) (int) \n \
-                  \6: Greater than (int) (int) \n \
-                  \7: Less than (int) (int) \n \
-                  \8: Greater than or equal to (int) (int) \n \
-                  \9: Less than or equal to (int) (int)"
-                  
-
-questionIntOptions :: String  
-questionIntOptions = "1: IntVal \n \
-                     \2: Cardinality \n \
-                     \3: SumHand \n \
-                     \4: ProductHand \n \
-                     \5: Sum \n \
-                     \6: Diff \n \
-                     \7: Mod \n \
-                     \8: Product \n \
-                     \done: finish the question \n \
-                     \none: skip your turn"
-
--- TODO: how to have user input filter?
-  -- I think they can create filters for each individual suit or rank for now?
-  -- And then they can just combine them themselves?
-questionHandOptions :: String
-questionHandOptions = "1: Hand \n \
-                      \2: Filter \n \
-                      \3: UnionHand \n \
-                      \4: IntersectionHand \n \
-                      \done: finish the question \n \
-                      \none: skip your turn"
 
 claimRankIO :: GameStore -> Player -> [Int] -> IO ()
 claimRankIO gs p sequence = do
@@ -213,34 +163,48 @@ layoutCard gs p c = let newPlayerHand = Set.delete c (hand p)
 createQuestion :: GameStore -> IO ()
 createQuestion gs = let currQ = currQuestion gs in 
   case findBlank currQ of
-    1 -> createQuestionMain
-    2 -> createQuestionInt
-    3 -> createQuestionBool
-    _ -> putStr "" -- this is still dumb
-  where createQuestionMain = do putStrLn (questionOptions2 (currQuestion gs ))
-                                input <- getLine
-                                case readQuestionOptions2 input of
-                                  Nothing -> do putStrLn "Invalid input, try again!"
-                                                createQuestionMain
-                                  Just q -> case buildQuestion (currQuestion gs) q of 
+    1 -> createQuestionMain currQ
+    2 -> createQuestionInt currQ
+    3 -> createQuestionBool currQ
+    _ -> putStr "" -- go gs, what are we doing with the question now that it's made?
+  where createQuestionMain :: Question -> IO ()
+        createQuestionMain currQ = 
+          do putStrLn (questionOptionsBuilding currQ)
+             input <- getLine
+             case readQuestionOptionsBuilding input of
+               Nothing -> do putStrLn "Invalid input, try again!"
+                             createQuestionMain currQ
+               Just q -> case buildQuestion currQ q of 
+                 Nothing -> undefined -- should be unreachable
+                 Just newQ -> createQuestion (gs {currQuestion = newQ})
+        createQuestionInt currQ = 
+          do putStrLn (questionIntOptions currQ)
+             input <- getLine
+             case readQuestionIntOptions input of
+               Nothing -> do putStrLn "Invalid input, try again!"
+                             createQuestionInt currQ
+               Just q -> case q of 
+                IntVal _ -> do putStrLn "Which integer?"
+                               i <- getLine
+                               case readMaybe i :: Maybe Int of
+                                 Just i' -> let q = IntVal i' in
+                                  case buildQuestionWithQInt currQ q of -- this code is duplicated below
                                     Nothing -> undefined -- should be unreachable
                                     Just newQ -> createQuestion (gs {currQuestion = newQ})
-        createQuestionInt = undefined
-        createQuestionBool = undefined
-
-readQuestionOptions2 :: String -> Maybe Question
-readQuestionOptions2 s = 
-  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
-    Just 1 -> Just $ NonEmpty BlankQHand
-    Just 2 -> Just $ Union Blank Blank
-    Just 3 -> Just $ Intersection Blank Blank
-    Just 4 -> Just $ Not Blank
-    Just 5 -> Just $ Equals BlankQInt BlankQInt
-    Just 6 -> Just $ Gt BlankQInt BlankQInt
-    Just 7 -> Just $ Lt BlankQInt BlankQInt
-    Just 8 -> Just $ Ge BlankQInt BlankQInt
-    Just 9 -> Just $ Le BlankQInt BlankQInt
-    _ -> Nothing
+                                 Nothing -> do putStrLn "Not an integer!"
+                                               createQuestionInt currQ
+                _ -> case buildQuestionWithQInt currQ q of -- think about making the maybe as a helper function to get rid of the pattern match
+                       Nothing -> undefined -- should be unreachable
+                       Just newQ -> createQuestion (gs {currQuestion = newQ})
+        createQuestionBool currQ = 
+          do putStrLn (questionHandOptions currQ)
+             input <- getLine
+             case readQuestionHandOptions input of
+               Nothing -> do putStrLn "Invalid input, try again!"
+                             createQuestionInt currQ
+               Just q -> case buildQuestionWithQHand currQ q of 
+                 Nothing -> undefined -- should be unreachable
+                 Just newQ -> createQuestion (gs {currQuestion = newQ})
 
 move :: [Int] -> Game
 move [] = return []
