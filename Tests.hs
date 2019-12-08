@@ -1,4 +1,5 @@
 {-# OPTIONS -Wincomplete-patterns #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Tests where
 import GamePieces
 import Question
@@ -41,6 +42,9 @@ runFakeIO comp inputs =
     DL.toList (fsWrite (S.execState comp initState))
   where
     initState = FS { fsWrite = DL.empty, fsInput = inputs }
+
+fakeIOTest :: Test
+fakeIOTest = runFakeIO (play 4 0) [] ~?= [] -- TODO: build regression test
 
 -------------------- Question Tests --------------------
 
@@ -166,7 +170,7 @@ propCardsEvenDistributed n a = n > a && a >= 0 && n <= 52 ==>
 propNoFaceUpOnStart :: Int -> Int -> Property
 propNoFaceUpOnStart n a = n > a && a >= 0 ==> 
   let gs = initialGameStore n a in
-  length (faceUpCards gs) == 0
+  length (laidOutCards gs) == 0
 
 unitTests :: Test
 unitTests = TestList [
@@ -198,7 +202,7 @@ testCheckTie = checkEnd tieState
 testClaimRank :: Bool
 testClaimRank =
   let gs = fakeGameAllCards
-      gs2 = claimRank gs (players gs ! 0) Ace in
+      (gs2, _) = claimRank gs (players gs ! 0) Ace in
   (ranks (players gs ! 0) == Set.empty) && (Set.size (hand (players gs ! 0)) == 52) &&
   (ranks (players gs2 ! 0) == Set.fromList [Ace]) && (Set.size (hand (players gs2 ! 0)) == 48)
 
@@ -208,10 +212,10 @@ testClaimRankLayOut =
   let gs  = unshuffledGame
       card =  Card Ace Heart
       gs2 = layoutCard gs (players gs ! 0) card
-      gs3 = claimRank gs2 (players gs2 ! 0) Ace in
-  (faceUpCards gs == []) &&
-  (faceUpCards gs2 == [card]) &&
-  (faceUpCards gs3 == []) &&
+      (gs3, _) = claimRank gs2 (players gs2 ! 0) Ace in
+  (laidOutCards gs == []) &&
+  (laidOutCards gs2 == [card]) &&
+  (laidOutCards gs3 == []) &&
   (Set.size (hand (players gs ! 0)) - 4 == Set.size (hand (players gs3 ! 0))) &&
   (ranks (players gs3 ! 0) == Set.fromList [Ace]) 
   
@@ -221,8 +225,8 @@ testLayOut =
   let gs  = unshuffledGame
       card =  Card Ace Heart
       gs2 = layoutCard gs (players gs ! 0) card in
-  faceUpCards gs == [] &&
-  faceUpCards gs2 == [card] &&
+  laidOutCards gs == [] &&
+  laidOutCards gs2 == [card] &&
   Set.size (hand (players gs ! 0)) - 1 == Set.size (hand (players gs2 ! 0))
 
 

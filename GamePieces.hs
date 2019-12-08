@@ -32,10 +32,6 @@ plusCard c i = fromEnum (rank c) + 1 + i
 multiplyCard :: Card -> Int -> Int
 multiplyCard c i = (fromEnum (rank c) + 1) * i
 
--- -- | Automatically lets current player claim ranks
--- claimRank :: Player -> GameStore -> GameStore
--- claimRank = undefined
-
 -- | creates a deck of 52 cards
 deck :: [Card]
 deck = do

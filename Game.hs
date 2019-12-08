@@ -67,10 +67,10 @@ instructions = "Here are instructions! tbd..."
 
 -- | make moves until someone wins
 -- TODO: restrict arguments
-main :: (Input m, Output m) => Int -> Int -> m ()
-main numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
+play :: (Input m, Output m) => Int -> Int -> m ()
+play numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
                             sequence = [0..numPlayers + numAI] in do
-  write "Welcome to Diplomat! \n"
+  write "Welcome to Diplomat!\n"
   goIntro sequence initialStore
 
 goIntro :: (Input m, Output m) => [Int] -> GameStore -> m ()
