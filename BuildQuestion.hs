@@ -145,13 +145,13 @@ buildQuestionWithQHand (Le qi1 qi2) qh = case buildQuestionWithQHand' qi1 qh of
 buildQuestionWithQHand _ _ = Nothing
 
 buildQuestionWithQHand' :: QInt -> QHand -> Maybe QInt
-buildQuestionWithQHand' (Cardinality qh1) qh = case buildQuestionWithQHand'' qh qh of
+buildQuestionWithQHand' (Cardinality qh1) qh = case buildQuestionWithQHand'' qh1 qh of
   Just qh2 -> Just $ Cardinality qh2
   Nothing -> Nothing
-buildQuestionWithQHand' (SumHand qh1) qh = case buildQuestionWithQHand'' qh qh of
+buildQuestionWithQHand' (SumHand qh1) qh = case buildQuestionWithQHand'' qh1 qh of
   Just qh2 -> Just $ SumHand qh2
   Nothing -> Nothing
-buildQuestionWithQHand' (ProductHand qh1) qh = case buildQuestionWithQHand'' qh qh of
+buildQuestionWithQHand' (ProductHand qh1) qh = case buildQuestionWithQHand'' qh1 qh of
   Just qh2 -> Just $ ProductHand qh2
   Nothing -> Nothing
 buildQuestionWithQHand' (Sum qi1 qi2) qh = case buildQuestionWithQHand' qi1 qh of

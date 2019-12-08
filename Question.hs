@@ -63,7 +63,6 @@ instance Show QInt where
   show (Quotient qi1 qi2) = 
     "(" ++ show qi1 ++ ") divided by (" ++ show qi2 ++ ")" 
 
-
 data QHand = 
   BlankQHand
   | Hand                           -- -> hand
@@ -128,16 +127,8 @@ getAnswerHand BlankQHand _ = Set.empty
 ------------------------ Question Options for Building ------------------------
 
 questionOptionsInitial :: String  
-questionOptionsInitial = "1: Ask for a specific card \n \
-                  \2: Non-empty (hand) \n \
-                  \3: Union (question) (question) \n \
-                  \4: Intersection (question) (question) \n \
-                  \5: Not (question) \n \
-                  \6: Equals (int) (int) \n \
-                  \7: Greater than (int) (int) \n \
-                  \8: Less than (int) (int) \n \
-                  \9: Greater than or equal to (int) (int) \n \
-                  \10: Less than or equal to (int) (int) \n \
+questionOptionsInitial = " 1: Ask for a specific card \n \
+                  \2: Build a more complex question \n \
                   \none: skip your turn"
 
 questionOptionsBuilding :: Question ->  String  
