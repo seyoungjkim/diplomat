@@ -93,7 +93,7 @@ goIntro sequence store =
                   write (show (Set.toList (ranks player)) ++ "\n") >>
                   goIntro sequence store
       "claim" -> goClaim sequence store
-      "askq" -> goQuestion sequence store
+      "ask" -> goQuestion sequence store
       "all" -> write ("\nEntire game store:") >>
                write (show (players store) ++ "\n") >>
                goIntro sequence store
@@ -196,7 +196,7 @@ createQuestion player sequence gs = let currQ = currQuestion gs in
   case findBlank currQ of
     1 -> createQuestionMain currQ
     2 -> createQuestionInt currQ
-    3 -> createQuestionBool currQ
+    3 -> createQuestionHand currQ
     _ -> askComplexQuestion player sequence gs
   where
     createQuestionMain :: (Input m, Output m) => Question -> m ()
@@ -232,17 +232,38 @@ createQuestion player sequence gs = let currQ = currQuestion gs in
         Just q -> case buildQuestionWithQInt currQ q of -- think about making the maybe as a helper function to get rid of the pattern match
                 Nothing -> undefined -- should be unreachable
                 Just newQ -> createQuestion player sequence (gs {currQuestion = newQ})
-    createQuestionBool :: (Input m, Output m) => Question -> m ()
-    createQuestionBool currQ = do 
+    createQuestionHand :: (Input m, Output m) => Question -> m ()
+    createQuestionHand currQ = do 
       write (questionHandOptions currQ)
       playerInput <- input
       case readQuestionHandOptions playerInput of
         Nothing -> do 
           write "Invalid input, try again!"
           createQuestionInt currQ
+        Just (Filter _ qh) -> createQuestionFilter currQ Set.empty Set.empty
         Just q -> case buildQuestionWithQHand currQ q of 
           Nothing -> undefined -- should be unreachable
           Just newQ -> createQuestion player sequence (gs {currQuestion = newQ})
+    createQuestionFilter :: (Input m, Output m) => Question -> Set.Set Suit -> Set.Set Rank -> m ()
+    createQuestionFilter currQ filteredSuits filteredRanks = do
+      write "\nSo far, you've filtered out:"
+      write (show $ filteredSuits)
+      write (show $ filteredRanks)
+      write "What would you like to filter out? Enter any rank, suit, or 'done' if there's nothing else to filter."
+      filterOut <- input
+      case (readMaybe filterOut :: Maybe Suit) of
+        Just s -> createQuestionFilter currQ (Set.insert s filteredSuits) filteredRanks
+        Nothing -> case (readMaybe filterOut :: Maybe Rank) of
+          Just r -> createQuestionFilter currQ filteredSuits (Set.insert r filteredRanks)
+          Nothing -> case filterOut of
+            "done" -> 
+              let filterFunction = (\c -> (not ((suit c) `Set.member` filteredSuits)) 
+                                     && not ((rank c) `Set.member` filteredRanks)) in
+              case buildQuestionWithQHand currQ (Filter filterFunction BlankQHand) of 
+                Nothing -> undefined -- should be unreachable
+                Just newQ -> createQuestion player sequence (gs {currQuestion = newQ})
+            _ -> write "Invalid input, try again!" >>
+                 createQuestionFilter currQ filteredSuits filteredRanks
 
 move :: [Int] -> Game
 move [] = return []

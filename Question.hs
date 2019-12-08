@@ -24,7 +24,7 @@ data Question =
 instance Show Question where
   show Blank = "_"
   show (SpecificCard c) = "Do you have the " ++ show c ++ "?"
-  show (NonEmpty qh) = "Is the set {" ++ show qh ++ "} empty?"
+  show (NonEmpty qh) = "Is there anything in the hand {" ++ show qh ++ "}?"
   show (Union q1 q2) = "(" ++ show q1 ++ ") or (" ++ show q2 ++ ")?"
   show (Intersection q1 q2) = "(" ++ show q1 ++ ") and (" ++ show q2 ++ ")?"
   show (Not q) = "Not (" ++ show q ++ ")"
@@ -76,10 +76,10 @@ instance Show QHand where
   show (UnionHand qh1 qh2) = "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (IntersectionHand qh1 qh2) = 
     "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
-  show (Filter f qh) = "Filter([" ++ findTrueCard f ++ "], " ++ show qh ++ ")"
-    where findTrueCard :: (Card -> Bool) -> String
-          findTrueCard f = 
-            foldr (\x acc -> if f x then show x else acc) "N/A" deck
+  show (Filter f qh) = "Filtering ([ex. " ++ findFalseCard f ++ "], " ++ show qh ++ ")"
+    where findFalseCard :: (Card -> Bool) -> String
+          findFalseCard f = 
+            foldr (\x acc -> if not (f x) then show x else acc) "N/A" deck
 
 -------------------------------------------------------------------------
 -- | returns bool value of a top-level question

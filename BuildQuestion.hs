@@ -183,6 +183,9 @@ buildQuestionWithQHand' _ _ = Nothing
 
 buildQuestionWithQHand'' :: QHand -> QHand -> Maybe QHand
 buildQuestionWithQHand'' BlankQHand qh = Just qh
+buildQuestionWithQHand'' (Filter f qh1) qh = case buildQuestionWithQHand'' qh1 qh of
+  Just qh1' -> Just $ Filter f qh1'
+  Nothing -> Nothing
 buildQuestionWithQHand'' (UnionHand qh1 qh2) qh = case buildQuestionWithQHand'' qh1 qh of
     Just qh1' -> Just $ UnionHand qh1' qh2
     Nothing -> case buildQuestionWithQHand'' qh2 qh of
