@@ -66,7 +66,37 @@ displayEnd :: (Input m, Output m) => Game -> m ()
 displayEnd = undefined
 
 instructions :: String
-instructions = "Here are instructions! tbd..."
+instructions = "=== INSTRUCTIONS ===\n\
+               \Diplomat is very similar to the popular card game, Go Fish.\n\
+               \Cards are distributed evenly among all players, and then \n\
+               \players take turns questioning each other. \n\n\
+               \The goal of the game is to collect as many ranks as possible,\n\
+               \where claiming a rank means collecting all four cards of the\n\ 
+               \rank (i.e. you can claim the Ace rank when you've located all\n\
+               \four Aces in the game). \n\n\
+               \On your turn, you can do the following actions:\n\n\
+               \  1. Ask another player if they have a specific card (i.e.\n\
+               \  Ace of Spades). If the anwer is yes, this card is laid out\n\
+               \  and all players can see it, and you can continue your turn\n\
+               \  and ask another question to any player. If the answer is\n\
+               \  No, your turn ends.\n\n\
+               \  2. Ask another player any Yes-No question about their hand\n\
+               \  (i.e. 'Do you have any Black Queens?'). Regardless if the\n\
+               \  answer is Yes or No, your turn ends.\n\n\
+               \At any point during your turn, you can claim a rank if you\n\
+               \know where all four cards of a rank are (AKA all four cards\n\
+               \are either in your hand or laid out)."
+
+commands :: String
+commands = "Here are commands you can use:\n \
+           \help: to view what commands you can use\n \
+           \instr: to view Diplomat instructions\n \
+           \hand: to view the cards in your hand\n \
+           \laidout: to view currently laid-out cards\n \
+           \claimed: to view the ranks you have claimed\n \
+           \claim: to claim a rank\n \
+           \ask: to ask another player a question\n \
+           \quit: to quit the game.\n"
 
 -- | make moves until someone wins
 -- TODO: restrict arguments
@@ -74,24 +104,27 @@ play :: (Input m, Output m) => Int -> Int -> m ()
 play numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
                             sequence = [0..numPlayers + numAI] in do
   write "Welcome to Diplomat!\n"
+  write commands
   goIntro sequence initialStore
 
 goIntro :: (Input m, Output m) => [Int] -> GameStore -> m ()
 goIntro sequence store = 
   let player = players store ! head sequence in do
     write $ "It's Player " ++ show (pid player) ++ "'s turn!!"
-    write "Please make a move."
+    write "Please type a command."
     playerCommand <- input
     case playerCommand of
-      "help" -> write ("\n" ++ instructions ++ "\n") >>
+      "help" -> write ("\n" ++ commands ++ "\n") >>
                 goIntro sequence store
+      "instr" -> write ("\n" ++ instructions ++ "\n") >>
+                 goIntro sequence store
       "quit" -> return ()
       "hand" -> write "\nYour hand:" >>
                 write (show (hand player) ++ "\n") >>
                 goIntro sequence store
       "laidout" -> write "\nCurrent laid out cards:" >>
-                  write (show (laidOutCards store) ++ "\n") >>
-                  goIntro sequence store
+                   write (show (laidOutCards store) ++ "\n") >>
+                   goIntro sequence store
       "claimed" -> write "\nYour current claimed ranks:" >>
                   write (show (Set.toList (ranks player)) ++ "\n") >>
                   goIntro sequence store
