@@ -162,7 +162,7 @@ askComplexQuestion :: (Input m, Output m) => Player -> [Int] -> GameStore -> m (
 askComplexQuestion player sequence store = 
   let (sequence', _) = S.runState (move sequence) store in do
     let ans = getAnswer (currQuestion store) (hand player)
-    write ("You asked player " ++ (show $ pid player))
+    write ("You asked Player " ++ (show $ pid player) ++ ":")
     write (show (currQuestion store))
     putBool ans
     goIntro sequence' store
@@ -218,21 +218,20 @@ createQuestion player sequence gs = let currQ = currQuestion gs in
         Nothing -> do 
           write "Invalid input, try again!"
           createQuestionInt currQ
-        Just q -> case q of 
-          IntVal _ -> do 
-            write "Which integer?"
-            i <- input
-            case readMaybe i :: Maybe Int of
-              Just i' -> let q = IntVal i' in
-                case buildQuestionWithQInt currQ q of -- this code is duplicated below
-                  Nothing -> undefined -- should be unreachable
-                  Just newQ -> createQuestion player sequence (gs {currQuestion = newQ})
-              Nothing -> do 
-                write "Not an integer, try again!"
-                createQuestionInt currQ
-          _ -> case buildQuestionWithQInt currQ q of -- think about making the maybe as a helper function to get rid of the pattern match
-                  Nothing -> undefined -- should be unreachable
-                  Just newQ -> createQuestion player sequence (gs {currQuestion = newQ})
+        Just (IntVal _) -> do 
+          write "Which integer?"
+          i <- input
+          case readMaybe i :: Maybe Int of
+            Just i' -> let q = IntVal i' in
+              case buildQuestionWithQInt currQ q of -- this code is duplicated below
+                Nothing -> undefined -- should be unreachable
+                Just newQ -> createQuestion player sequence (gs {currQuestion = newQ})
+            Nothing -> do 
+              write "Not an integer, try again!"
+              createQuestionInt currQ
+        Just q -> case buildQuestionWithQInt currQ q of -- think about making the maybe as a helper function to get rid of the pattern match
+                Nothing -> undefined -- should be unreachable
+                Just newQ -> createQuestion player sequence (gs {currQuestion = newQ})
     createQuestionBool :: (Input m, Output m) => Question -> m ()
     createQuestionBool currQ = do 
       write (questionHandOptions currQ)

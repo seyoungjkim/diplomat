@@ -127,7 +127,7 @@ getAnswerHand BlankQHand _ = Set.empty
 ------------------------ Question Options for Building ------------------------
 
 questionOptionsInitial :: String  
-questionOptionsInitial = "1: Ask for a specific card \n \
+questionOptionsInitial = " 1: Ask for a specific card \n \
                   \2: Build a more complex question \n \
                   \none: skip your turn"
 
