@@ -53,8 +53,8 @@ displayEnd = undefined
 
 -- | make moves until someone wins
 -- TODO: restrict arguments
-main :: Int -> Int -> IO ()
-main numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
+play :: Int -> Int -> IO ()
+play numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
                             sequence = [0..numPlayers + numAI] in
   goIntro sequence initialStore
 
