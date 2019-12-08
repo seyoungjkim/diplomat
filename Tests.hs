@@ -43,6 +43,9 @@ runFakeIO comp inputs =
   where
     initState = FS { fsWrite = DL.empty, fsInput = inputs }
 
+fakeIOTest :: Test
+fakeIOTest = runFakeIO (play 4 0) [] ~?= [] -- TODO: build regression test
+
 -------------------- Question Tests --------------------
 
 -- for all cards c in a hand h, getAnswer (SpecificCard c) h is true iff
