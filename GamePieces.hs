@@ -20,7 +20,8 @@ data Rank = Ace   | Two  | Three | Four | Five  | Six | Seven
 data Suit = Diamond | Club | Heart | Spade
   deriving (Eq, Show, Ord, Enum, Bounded, Read)
 
-data Player = P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool }
+data Player = 
+  P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool }
   deriving (Eq, Show)
 
 type PlayerHand = Set Card
@@ -36,8 +37,7 @@ multiplyCard c i = (fromEnum (rank c) + 1) * i
 deck :: [Card]
 deck = do
        r <- [Ace ..]
-       s <- [Diamond ..]
-       return $ Card r s
+       Card r <$> [Diamond .. ]
 
 -- | shuffles a deck
 shuffleDeck :: [Card] -> [Card]
@@ -50,23 +50,25 @@ dealDeck n cs = let d = 52 `div` n
                     r = m * (d + 1)
                     cs' = shuffleDeck cs in
   if m > 0 
-    then (deal (d + 1) (Prelude.take r cs')) ++ (deal d (Prelude.drop r cs'))
+    then deal (d + 1) (Prelude.take r cs') ++ deal d (Prelude.drop r cs')
   else deal d cs'
   where
     deal _ [] = []
     deal n l = let (hd, tl) = Prelude.splitAt n l in
-      (Set.fromList hd) : (deal n tl)
+      Set.fromList hd : deal n tl
 
 -- shuffle deck helper functions
 fisherYatesStep :: RandomGen g => (Map Int a, g) -> (Int, a) -> (Map Int a, g)
-fisherYatesStep (m, gen) (i, x) = ((Map.insert j x . Map.insert i (m ! j)) m, gen')
+fisherYatesStep (m, gen) (i, x) = 
+  ((Map.insert j x . Map.insert i (m ! j)) m, gen')
   where
     (j, gen') = randomR (0, i) gen
 
 fisherYates :: RandomGen g => g -> [a] -> ([a], g)
 fisherYates gen [] = ([], gen)
 fisherYates gen l = 
-  toElems $ Prelude.foldl fisherYatesStep (initial (head l) gen) (numerate (tail l))
+  toElems $ 
+  Prelude.foldl fisherYatesStep (initial (head l) gen) (numerate (tail l))
   where
     toElems (x, y) = (Map.elems x, y)
     numerate = zip [1..]

@@ -76,7 +76,8 @@ instance Show QHand where
   show (UnionHand qh1 qh2) = "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (IntersectionHand qh1 qh2) = 
     "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
-  show (Filter f qh) = "Filtering ([ex. " ++ findFalseCard f ++ "], " ++ show qh ++ ")"
+  show (Filter f qh) = 
+    "Filtering ([ex. " ++ findFalseCard f ++ "], " ++ show qh ++ ")"
     where findFalseCard :: (Card -> Bool) -> String
           findFalseCard f = 
             foldr (\x acc -> if not (f x) then show x else acc) "N/A" deck
@@ -127,21 +128,23 @@ getAnswerHand BlankQHand _ = Set.empty
 ------------------------ Question Options for Building ------------------------
 
 questionOptionsInitial :: String  
-questionOptionsInitial = " 1: Ask for a specific card \n \
-                  \2: Build a more complex question \n \
-                  \none: skip your turn"
+questionOptionsInitial = 
+  " 1: Ask for a specific card \n \
+  \2: Build a more complex question \n \
+  \none: skip your turn"
 
 questionOptionsBuilding :: Question ->  String  
-questionOptionsBuilding q = "So far your question is " ++ show q ++ ". Choose one:  \n \
-                  \1: Non-empty (hand) \n \
-                  \2: Union (question) (question) \n \
-                  \3: Intersection (question) (question) \n \
-                  \4: Not (question) \n \
-                  \5: Equals (int) (int) \n \
-                  \6: Greater than (int) (int) \n \
-                  \7: Less than (int) (int) \n \
-                  \8: Greater than or equal to (int) (int) \n \
-                  \9: Less than or equal to (int) (int)"
+questionOptionsBuilding q = 
+  "So far your question is " ++ show q ++ ". Choose one:  \n \
+  \1: Non-empty (hand) \n \
+  \2: Union (question) (question) \n \
+  \3: Intersection (question) (question) \n \
+  \4: Not (question) \n \
+  \5: Equals (int) (int) \n \
+  \6: Greater than (int) (int) \n \
+  \7: Less than (int) (int) \n \
+  \8: Greater than or equal to (int) (int) \n \
+  \9: Less than or equal to (int) (int)"
 
 readQuestionOptionsBuilding :: String -> Maybe Question
 readQuestionOptionsBuilding s = 
@@ -158,16 +161,17 @@ readQuestionOptionsBuilding s =
     _ -> Nothing
                   
 questionIntOptions :: Question -> String  
-questionIntOptions q = "So far your question is " ++ show q ++ ". Choose one:  \n \
-                     \1: Integer \n \
-                     \2: Cardinality (hand) \n \
-                     \3: SumHand (hand) \n \
-                     \4: ProductHand (hand) \n \
-                     \5: Sum (int) (int) \n \
-                     \6: Diff (int) (int) \n \
-                     \7: Mod (int) (int) \n \
-                     \8: Product (int) (int) \n \
-                     \9: Quotient (int) (int)"
+questionIntOptions q = 
+  "So far your question is " ++ show q ++ ". Choose one:  \n \
+   \1: Integer \n \
+   \2: Cardinality (hand) \n \
+   \3: SumHand (hand) \n \
+   \4: ProductHand (hand) \n \
+   \5: Sum (int) (int) \n \
+   \6: Diff (int) (int) \n \
+   \7: Mod (int) (int) \n \
+   \8: Product (int) (int) \n \
+   \9: Quotient (int) (int)"
 
 readQuestionIntOptions :: String -> Maybe QInt
 readQuestionIntOptions s = 
@@ -187,17 +191,18 @@ readQuestionIntOptions s =
   -- I think they can create filters for each individual suit or rank for now?
   -- And then they can just combine them themselves?
 questionHandOptions :: Question -> String
-questionHandOptions q = "So far your question is " ++ show q ++ ". Choose one:  \n \
-                      \1: Player's hand \n \
-                      \2: Filter (filter function) (hand) \n \
-                      \3: UnionHand (hand) (hand) \n \
-                      \4: IntersectionHand (hand) (hand)"
+questionHandOptions q = 
+  "So far your question is " ++ show q ++ ". Choose one:  \n \
+  \1: Player's hand \n \
+  \2: Filter (filter function) (hand) \n \
+  \3: UnionHand (hand) (hand) \n \
+  \4: IntersectionHand (hand) (hand)"
 
 readQuestionHandOptions :: String -> Maybe QHand
 readQuestionHandOptions s = 
   case readMaybe s :: Maybe Int of -- this should maybe be done with a map
-    Just 1 -> Just $ Hand
-    Just 2 -> Just $ Filter (\c -> True) BlankQHand
+    Just 1 -> Just Hand
+    Just 2 -> Just $ Filter (const True) BlankQHand
     Just 3 -> Just $ UnionHand BlankQHand BlankQHand
     Just 4 -> Just $ IntersectionHand BlankQHand BlankQHand
     _ -> Nothing

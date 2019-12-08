@@ -1,5 +1,5 @@
 {-# OPTIONS -Wincomplete-patterns #-}
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Tests where
 import GamePieces
 import Question
@@ -31,7 +31,7 @@ instance Output FakeIO where
 instance Input FakeIO where
   input = do
     st <- S.get
-    let (v,rest) = case (fsInput st) of
+    let (v,rest) = case fsInput st of
                      []     -> ("",[])
                      (x:xs) -> (x,xs)
     S.put $ st { fsInput = rest }
@@ -52,7 +52,7 @@ fakeIOTest = runFakeIO (play 4 0) [] ~?= [] -- TODO: build regression test
 -- the hand contains c
 propHandsContainSpecificCard :: PlayerHand -> Bool
 propHandsContainSpecificCard h =
-  all (\c -> (Set.member c h) == getAnswer (SpecificCard c) h) deck 
+  all (\c -> Set.member c h == getAnswer (SpecificCard c) h) deck 
 
 -- non-empty hand returns true, else false
 propNonEmptyHand :: PlayerHand -> Bool
@@ -79,7 +79,7 @@ propEqualsQuestion qi1 qi2 h =
 
 -- equals always returns true if given two identical questions
 propEqualsQuestionSame :: QInt -> PlayerHand -> Bool
-propEqualsQuestionSame qi h = getAnswer (Equals qi qi) h
+propEqualsQuestionSame qi = getAnswer (Equals qi qi)
 
 -- gt always returns false if given two identical questions
 propGtQuestionSame :: QInt -> PlayerHand -> Bool
@@ -87,7 +87,7 @@ propGtQuestionSame qi h = not $ getAnswer (Gt qi qi) h
 
 -- ge always returns true if given two identical questions
 propGeQuestionSame :: QInt -> PlayerHand -> Bool
-propGeQuestionSame qi h = getAnswer (Ge qi qi) h
+propGeQuestionSame qi = getAnswer (Ge qi qi)
 
 -- lt always returns false if given two identical questions
 propLtQuestionSame :: QInt -> PlayerHand -> Bool
@@ -95,18 +95,18 @@ propLtQuestionSame qi h = not $ getAnswer (Lt qi qi) h
 
 -- le always returns true if given two identical questions
 propLeQuestionSame :: QInt -> PlayerHand -> Bool
-propLeQuestionSame qi h = getAnswer (Le qi qi) h
+propLeQuestionSame qi = getAnswer (Le qi qi)
 
 instance Arbitrary Card where
   arbitrary = elements deck
   shrink c = []
 
 instance Arbitrary Question where
-  arbitrary = frequency [ (1, liftM SpecificCard arbitrary), 
-                          (4, liftM Question.NonEmpty arbitrary),
+  arbitrary = frequency [ (1, fmap SpecificCard arbitrary), 
+                          (4, fmap Question.NonEmpty arbitrary),
                           (2, liftM2 Union arbitrary arbitrary),
                           (2, liftM2 Intersection arbitrary arbitrary),
-                          (2, liftM Not arbitrary),
+                          (2, fmap Not arbitrary),
                           (2, liftM2 Equals arbitrary arbitrary),
                           (2, liftM2 Gt arbitrary arbitrary),
                           (2, liftM2 Lt arbitrary arbitrary),
@@ -119,10 +119,10 @@ instance Arbitrary Question where
   shrink _ = []
 
 instance Arbitrary QInt where
-  arbitrary = frequency [ (2, liftM IntVal arbitrary),
-                          (5, liftM Cardinality arbitrary),
-                          (1, liftM SumHand arbitrary),
-                          (1, liftM ProductHand arbitrary),
+  arbitrary = frequency [ (2, fmap IntVal arbitrary),
+                          (5, fmap Cardinality arbitrary),
+                          (1, fmap SumHand arbitrary),
+                          (1, fmap ProductHand arbitrary),
                           (1, liftM2 Sum arbitrary arbitrary),
                           (1, liftM2 Diff arbitrary arbitrary),
                           (3, liftM2 Mod arbitrary arbitrary),
@@ -154,23 +154,28 @@ propAllCardsDistributed :: Int -> Int -> Property
 propAllCardsDistributed n a = n > a && a >= 0 ==> 
   let gs = initialGameStore n a
       allCards :: [Card]
-      allCards = Prelude.foldr (\p acc -> Set.toList (hand p) ++ acc) [] (players gs) in
+      allCards = 
+        Prelude.foldr (\p acc -> Set.toList (hand p) ++ acc) [] (players gs) in
   length allCards == 52 && Set.size (Set.fromList allCards) == 52
 
 -- cards evenly distributed when game is initialized
 propCardsEvenDistributed :: Int -> Int -> Property
 propCardsEvenDistributed n a = n > a && a >= 0 && n <= 52 ==> 
   let gs = initialGameStore n a
-      maxSize = Prelude.foldr (\p acc -> max (Set.size (hand p)) acc) 0 (players gs)
-      minSize = Prelude.foldr (\p acc -> min (Set.size (hand p)) acc) 52 (players gs) in
+      maxSize = 
+        Prelude.foldr (\p acc -> max (Set.size (hand p)) acc) 0 (players gs)
+      minSize = 
+        Prelude.foldr (\p acc -> min (Set.size (hand p)) acc) 52 (players gs) in
   maxSize == minSize || maxSize + 1 == minSize && 
-  Prelude.foldr (\p acc -> (Set.size (hand p)) > 0 && (Set.size (hand p)) <= 52 && acc) True (players gs)
+  Prelude.foldr 
+    (\p acc -> Set.size (hand p) > 0 && Set.size (hand p) <= 52 && acc) 
+    True (players gs)
 
 -- no face up cards when game initialized
 propNoFaceUpOnStart :: Int -> Int -> Property
 propNoFaceUpOnStart n a = n > a && a >= 0 ==> 
   let gs = initialGameStore n a in
-  length (laidOutCards gs) == 0
+  Prelude.null (laidOutCards gs)
 
 unitTests :: Test
 unitTests = TestList [
@@ -187,7 +192,7 @@ testPlayerTurn =
   let gs = initialGameStore 4 0
       firstPlayerId = pid (players gs ! 0)
       (ps2, gs2) = S.runState (move (Map.keys (players gs))) gs
-      secondPlayerId = ps2 !! 0 in
+      secondPlayerId = head ps2 in
   firstPlayerId == 0 && secondPlayerId == 1
 
 -- unit test for the end game where a player wins
@@ -203,19 +208,21 @@ testClaimRank :: Bool
 testClaimRank =
   let gs = fakeGameAllCards
       (gs2, _) = claimRank gs (players gs ! 0) Ace in
-  (ranks (players gs ! 0) == Set.empty) && (Set.size (hand (players gs ! 0)) == 52) &&
-  (ranks (players gs2 ! 0) == Set.fromList [Ace]) && (Set.size (hand (players gs2 ! 0)) == 48)
+  (ranks (players gs ! 0) == Set.empty) && 
+  (Set.size (hand (players gs ! 0)) == 52) &&
+  (ranks (players gs2 ! 0) == Set.fromList [Ace]) && 
+  (Set.size (hand (players gs2 ! 0)) == 48)
 
 -- write test for ranks being claimed with laid out cards
 testClaimRankLayOut :: Bool
 testClaimRankLayOut = 
   let gs  = unshuffledGame
-      card =  Card Ace Heart
+      card = Card Ace Heart
       gs2 = layoutCard gs (players gs ! 0) card
       (gs3, _) = claimRank gs2 (players gs2 ! 0) Ace in
-  (laidOutCards gs == []) &&
+  Prelude.null (laidOutCards gs) &&
   (laidOutCards gs2 == [card]) &&
-  (laidOutCards gs3 == []) &&
+  Prelude.null (laidOutCards gs3) &&
   (Set.size (hand (players gs ! 0)) - 4 == Set.size (hand (players gs3 ! 0))) &&
   (ranks (players gs3 ! 0) == Set.fromList [Ace]) 
   
@@ -223,9 +230,9 @@ testClaimRankLayOut =
 testLayOut :: Bool
 testLayOut = 
   let gs  = unshuffledGame
-      card =  Card Ace Heart
+      card = Card Ace Heart
       gs2 = layoutCard gs (players gs ! 0) card in
-  laidOutCards gs == [] &&
+  Prelude.null (laidOutCards gs) &&
   laidOutCards gs2 == [card] &&
   Set.size (hand (players gs ! 0)) - 1 == Set.size (hand (players gs2 ! 0))
 
@@ -280,12 +287,12 @@ dealDeckUnshuffled n cs =
                     m = 52 `mod` n 
                     r = m * (d + 1) in
   if m > 0 
-    then (deal (d + 1) (Prelude.take r cs)) ++ (deal d (Prelude.drop r cs))
+    then deal (d + 1) (Prelude.take r cs) ++ deal d (Prelude.drop r cs)
   else deal d cs
   where
     deal _ [] = []
     deal n l = let (hd, tl) = Prelude.splitAt n l in
-      (Set.fromList hd) : (deal n tl)
+      Set.fromList hd : deal n tl
 
 
 -- p1 has all cards
