@@ -85,7 +85,8 @@ instructions = "=== INSTRUCTIONS ===\n\
                \  answer is Yes or No, your turn ends.\n\n\
                \At any point during your turn, you can claim a rank if you\n\
                \know where all four cards of a rank are (AKA all four cards\n\
-               \are either in your hand or laid out)."
+               \are either in your hand or laid out).\
+               \====================\n"
 
 commands :: String
 commands = "Here are commands you can use:\n \
@@ -166,7 +167,7 @@ goQuestion sequence store =
     case (readMaybe playerIdToQuestion :: Maybe Int) of
       Just i -> case Map.lookup i (players store) of
         Just playerToQuestion -> do
-          write ("Player " ++ show (pid player) ++ ": Enter a question> ")
+          write ("\nPlayer " ++ show (pid player) ++ ": Enter a question> ")
           write questionOptionsInitial
           q <- input
           case q of
@@ -183,9 +184,9 @@ goQuestion sequence store =
 askSpecificCard :: (Input m, Output m) => Player -> [Int] -> GameStore -> m ()
 askSpecificCard player sequence store = 
   let (sequence', _) = S.runState (move sequence) store in do
-    write "Enter a rank."
+    write "\nEnter a rank."
     rank <- input
-    write "Enter a suit: Diamond, Club, Heart, or Spade."
+    write "\nEnter a suit: Diamond, Club, Heart, or Spade."
     suit <- input
     case (readMaybe suit :: Maybe Suit, readMaybe rank :: Maybe Rank) of
       (Just s, Just r) ->
@@ -195,8 +196,8 @@ askSpecificCard player sequence store =
           write (show (q :: Question)) >>
           if a 
             then let gs' = layoutCard store player c in
-                 write ("Yes, they had " ++ show c) >> goIntro sequence gs'
-            else write ("No, they didn't have " ++ show c) 
+                 write ("\nYes, they had " ++ show c ++ "\n") >> goIntro sequence gs'
+            else write ("\nNo, they didn't have " ++ show c ++ "\n") 
                  >> goIntro sequence' store
       _ -> write "invalid suit or rank" >> goQuestion sequence store
 
