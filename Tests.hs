@@ -44,7 +44,8 @@ runFakeIO comp inputs =
     initState = FS { fsWrite = DL.empty, fsInput = inputs }
 
 fakeIOTest :: Test
-fakeIOTest = runFakeIO (play 4 0) [] ~?= [] -- TODO: build regression test
+fakeIOTest = 
+  runFakeIO (play 3 0) ["quit"] ~?= [introText, commandsText, summaryText, promptText] -- TODO: build regression test
 
 -------------------- Question Tests --------------------
 
@@ -206,25 +207,28 @@ testCheckTie = checkEnd tieState
 -- unit test to check that ranks are claimed correctly
 testClaimRank :: Bool
 testClaimRank =
-  let gs = fakeGameAllCards
-      (gs2, _) = claimRank gs (players gs ! 0) Ace in
-  (ranks (players gs ! 0) == Set.empty) && 
-  (Set.size (hand (players gs ! 0)) == 52) &&
-  (ranks (players gs2 ! 0) == Set.fromList [Ace]) && 
-  (Set.size (hand (players gs2 ! 0)) == 48)
+  let store = fakeGameAllCards in
+  case claimRank store (players store ! 0) Ace of
+    Just store' -> (ranks (players store ! 0) == Set.empty) && 
+                (Set.size (hand (players store ! 0)) == 52) &&
+                (ranks (players store' ! 0) == Set.fromList [Ace]) && 
+                (Set.size (hand (players store' ! 0)) == 48)
+    Nothing -> False
 
 -- write test for ranks being claimed with laid out cards
 testClaimRankLayOut :: Bool
 testClaimRankLayOut = 
-  let gs  = unshuffledGame
+  let store  = unshuffledGame
       card = Card Ace Heart
-      gs2 = layoutCard gs (players gs ! 0) card
-      (gs3, _) = claimRank gs2 (players gs2 ! 0) Ace in
-  Prelude.null (laidOutCards gs) &&
-  (laidOutCards gs2 == [card]) &&
-  Prelude.null (laidOutCards gs3) &&
-  (Set.size (hand (players gs ! 0)) - 4 == Set.size (hand (players gs3 ! 0))) &&
-  (ranks (players gs3 ! 0) == Set.fromList [Ace]) 
+      store2 = layoutCard store (players store ! 0) card in
+  case claimRank store2 (players store2 ! 0) Ace of
+    Just store3 -> 
+      Prelude.null (laidOutCards store) &&
+      (laidOutCards store2 == [card]) &&
+      Prelude.null (laidOutCards store3) &&
+      (Set.size (hand (players store ! 0)) - 4 == Set.size (hand (players store3 ! 0))) &&
+      (ranks (players store3 ! 0) == Set.fromList [Ace]) 
+    Nothing -> False
   
 -- unit test to check that cards are laid out correctly
 testLayOut :: Bool
@@ -245,7 +249,7 @@ winState =
       ranks = [Set.fromList [Ace ..Six], Set.fromList [Seven ..Queen], 
                Set.fromList [King], Set.empty]
       players = createPlayersWin pids ranks in
-  G players [] Blank
+  G players [] Blank []
   where
     createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
@@ -258,7 +262,7 @@ tieState =
       pids = [0..3]
       ranks = [Set.fromList [Ace ..], Set.empty, Set.empty, Set.empty]
       players = createPlayersWin pids ranks in
-  G players [] Blank
+  G players [] Blank []
   where
     createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
@@ -272,7 +276,7 @@ unshuffledGame =
       pids = [0..3]
       hands = dealDeckUnshuffled n' deck
       players = createPlayersUnshuffled pids (Prelude.take n' hands) in
-  G players [] Blank
+  G players [] Blank []
   where
     createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
@@ -302,7 +306,7 @@ fakeGameAllCards =
       pids = [0..3]
       hands = [Set.fromList deck, Set.empty, Set.empty, Set.empty]
       players = createPlayersUnshuffled pids (Prelude.take n' hands) in
-  G players [] Blank
+  G players [] Blank []
   where
     createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
