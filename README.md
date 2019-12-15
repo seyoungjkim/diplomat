@@ -32,7 +32,7 @@ These were auto-generated from `cabal init`.
 We use QuickCheck, HUnit, Random, and DList in addition to core Haskell libraries.
 
 ## How to build
-Run `cabal build` followed by `cabal exec project`. Then you're playing!
+Run `cabal build` followed by `cabal exec diplomat`. Then you're playing!
 
 ## How to play
 
