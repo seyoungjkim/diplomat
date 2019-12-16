@@ -44,10 +44,12 @@ displayEnd sequence store =
   write $ getPlayerRanksString store
 
 goIntro :: (Input m, Output m) => [Int] -> GameStore -> m ()
-goIntro sequence@(playerId:_) store = if (checkEnd store) then displayEnd sequence store
+goIntro sequence@(playerId:_) store = if (checkEnd store) 
+  then displayEnd sequence store
   else case Map.lookup playerId (players store) of
-    Just player -> let clearedPrevMoves = clearPrevMoves playerId (prevMoves store)
-                       store' = store { prevMoves = clearedPrevMoves } in
+    Just player -> 
+      let clearedPrevMoves = clearPrevMoves playerId (prevMoves store)
+          store' = store { prevMoves = clearedPrevMoves } in
       if ai player then goIntroAI sequence store'
       else goIntroPlayer sequence store' 
         (hasPlayerBreak playerId (prevMoves store))
@@ -56,12 +58,9 @@ goIntro _ _ = return () -- Error
 
 goIntroAI :: (Input m, Output m) => [Int] -> GameStore -> m ()
 goIntroAI sequence@(playerId:_) store = 
-  case Map.lookup playerId (players store) of
-    Just player ->
-      let store' = runAiTurn store player
-          (sequence', _) = S.runState (move sequence) store' in
-        goIntro sequence' store'
-    Nothing -> return () -- Error
+  let store' = runAiTurn store playerId
+      (sequence', _) = S.runState (move sequence) store' in do
+    goIntro sequence' store'
 goIntroAI _ _ = return () -- Error
 
 goIntroPlayer :: (Input m, Output m) => [Int] -> GameStore -> Bool -> m ()
@@ -125,7 +124,7 @@ goClaim sequence@(playerId:_) store =
         "nvm" -> write "\nNot claiming any ranks." >>
                 goIntro sequence store
         _ -> case (readMaybe toClaim :: Maybe Rank) of
-                Just r -> case claimRank store player r of
+                Just r -> case claimRank store playerId r of
                   Just store' -> do
                     write ("\nCongrats, you successfully claimed the rank " ++ 
                           show r ++ " :)\n")

@@ -37,18 +37,18 @@ showBool True = "Yes! :)"
 showBool False = "No :("
 
 -- | initial map of all possible card assignments
-initialAiGuess :: PlayerHand -> [Int] -> CardGuess
-initialAiGuess aiHand playerIds = List.foldr 
-  (\c m -> Map.insert c (Set.fromList playerIds) m) Map.empty filteredDeck
-  where filteredDeck = List.foldr (\c acc -> 
-                         if Set.member c aiHand then acc else c : acc) [] deck
+initialAiGuess :: Int -> PlayerHand -> [Int] -> CardGuess
+initialAiGuess aid aiHand playerIds = List.foldr 
+  (\c m -> Map.insert c (Set.fromList filteredIds) m) Map.empty filteredDeck
+  where filteredDeck = List.filter (\c -> not $ Set.member c aiHand) deck
+        filteredIds = List.filter (\i -> i /= aid) playerIds
 
 -- | initializes game given the number of non-AI players and AIs
 initialGameStore :: Int -> Int -> GameStore
 initialGameStore n a =
   let total = n + a
       pids = [0..n - 1]
-      aids = [n..total]
+      aids = [n..total - 1]
       allIds = pids ++ aids
       hands = dealDeck total deck
       players = createPlayers pids (Prelude.take n hands) False allIds
@@ -59,28 +59,30 @@ initialGameStore n a =
     createPlayers :: [Int] -> [PlayerHand] -> Bool -> [Int] -> Map Int Player
     createPlayers (id : ids) (h : hands) b allIds = 
       Map.insert id (P id h Set.empty b cg) (createPlayers ids hands b allIds)
-      where cg = if b then (initialAiGuess h allIds) else Map.empty
+      where cg = if b then (initialAiGuess id h allIds) else Map.empty
     createPlayers _ _ _ _ = Map.empty
       
 
 -- | returns nothing if claim was not successful
-claimRank :: GameStore -> Player -> Rank -> Maybe GameStore
-claimRank store p r = 
-  let playerRanks = Prelude.filter (\c -> rank c == r) (Set.toList $ hand p)
-      laidOutRanks = Prelude.filter (\c -> rank c == r) (laidOutCards store) in
-  if length playerRanks + length laidOutRanks == 4 then
-    let playerId = pid p
-        newPlayerHand = 
-          Prelude.foldr Set.delete (hand p) playerRanks
-        newLaidOut = 
-          Prelude.foldr List.delete (laidOutCards store) laidOutRanks
-        playerClaimedRanks = Set.insert r (ranks p)
-        updatedPlayer = P playerId newPlayerHand playerClaimedRanks (ai p) (aiGuess p)
-        newPlayerMap = Map.insert playerId updatedPlayer (players store)
-        newPrevMoves = (prevMoves store) ++ [(MClaim playerId r)]
-        in
-    Just $ G newPlayerMap newLaidOut Blank newPrevMoves
-  else Nothing
+claimRank :: GameStore -> Int -> Rank -> Maybe GameStore
+claimRank store playerId r =
+  case Map.lookup playerId (players store) of
+    Nothing -> Nothing
+    Just player -> 
+      let playerRanks = Prelude.filter (\c -> rank c == r) (Set.toList $ hand player)
+          laidOutRanks = Prelude.filter (\c -> rank c == r) (laidOutCards store) in
+      if length playerRanks + length laidOutRanks == 4 then
+        let newPlayerHand = 
+              Prelude.foldr Set.delete (hand player) playerRanks
+            newLaidOut = 
+              Prelude.foldr List.delete (laidOutCards store) laidOutRanks
+            playerClaimedRanks = Set.insert r (ranks player)
+            updatedPlayer = player { hand = newPlayerHand, ranks = playerClaimedRanks }
+            newPlayerMap = Map.insert playerId updatedPlayer (players store)
+            newPrevMoves = (prevMoves store) ++ [(MClaim playerId r)]
+            in
+        Just $ G newPlayerMap newLaidOut Blank newPrevMoves
+      else Nothing
 
 -- | checks if any player has won the game
 checkEnd :: GameStore -> Bool

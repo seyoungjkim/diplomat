@@ -15,13 +15,13 @@ updateCardGuess cg card pid =
     Map.update f card cg
 
 -- | attempts to claim all possible ranks
-claimAllPossibleRanks :: GameStore -> Player -> GameStore
-claimAllPossibleRanks store player = claim store player [Ace ..] where
-  claim :: GameStore -> Player -> [Rank] -> GameStore
-  claim store player [] = store
-  claim store player (r:rs) = case claimRank store player r of
-    Nothing -> claim store player rs
-    Just store' -> claim store' player rs
+claimAllPossibleRanks :: GameStore -> Int -> GameStore
+claimAllPossibleRanks store playerId = claim store playerId [Ace ..] where
+  claim :: GameStore -> Int -> [Rank] -> GameStore
+  claim store playerId [] = store
+  claim store playerId (r:rs) = case claimRank store playerId r of
+    Nothing -> claim store playerId rs
+    Just store' -> claim store' playerId rs
 
 -- | choose a card and player to ask about (first pair found in map)
 getNextCard :: CardGuess -> Maybe (Card, Int)
@@ -35,26 +35,32 @@ filterKnownCards laidOutCards =
 
 -- | claims all possible ranks, asks specific card question,
 -- | updates store
-runAiTurn :: GameStore -> Player -> GameStore
-runAiTurn store askingPlayer =
-  let store' = claimAllPossibleRanks store askingPlayer
-      guess = filterKnownCards (laidOutCards store') (aiGuess askingPlayer) in
-    case getNextCard guess of
-      Just (card, askedPlayerId) ->
-        case Map.lookup askedPlayerId (players store') of
-          Just askedPlayer ->
-            let question = SpecificCard card
-                answer = getAnswer question (hand askedPlayer)
-                guess' = updateCardGuess guess card askedPlayerId
-                updatedAskingPlayer = askingPlayer { aiGuess = guess' }
-                updatedPlayerMap = Map.insert (pid askingPlayer) 
-                                     updatedAskingPlayer (players store)
-                store'' = store' { players = updatedPlayerMap,
-                                   prevMoves = (prevMoves store) ++ 
-                                   [ (MQuestion (pid askingPlayer) 
-                                   question (pid askedPlayer) answer) ] } in
-            if answer then runAiTurn store'' askingPlayer 
-            else store'' { prevMoves = (prevMoves store'') ++ 
-                         [ (MBreak (pid askingPlayer)) ] }
-          Nothing -> store'
+runAiTurn :: GameStore -> Int -> GameStore
+runAiTurn store playerId =
+  let store' = claimAllPossibleRanks store playerId
+      allPlayers = players store' in
+    case Map.lookup playerId (players store') of
+      Nothing -> store'
+      Just askingPlayer -> 
+        let guess = filterKnownCards (laidOutCards store') (aiGuess askingPlayer) in
+          case getNextCard guess of
+            Just (card, askedPlayerId) ->
+              case Map.lookup askedPlayerId allPlayers of
+                Just askedPlayer ->
+                  let question = SpecificCard card
+                      answer = getAnswer question (hand askedPlayer)
+                      guess' = updateCardGuess guess card askedPlayerId
+                      updatedAskingPlayer = askingPlayer { aiGuess = guess' }
+                      updatedPlayerMap = Map.insert playerId
+                                          updatedAskingPlayer allPlayers
+                      oldPrevMoves = prevMoves store'
+                      updatedPrevMoves = oldPrevMoves ++ [ (MQuestion 
+                        (pid askingPlayer) question (pid askedPlayer) answer) ]
+                      store'' = store' { players = updatedPlayerMap,
+                                        prevMoves = updatedPrevMoves } in
+                  if answer then 
+                    let store''' = layoutCard store'' askedPlayer card in
+                    runAiTurn store''' playerId
+                  else store'' { prevMoves = updatedPrevMoves }
+                Nothing -> store'
       Nothing -> store'

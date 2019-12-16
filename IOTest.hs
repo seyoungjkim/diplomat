@@ -43,4 +43,3 @@ runFakeIO comp inputs =
 fakeIOTest :: Test
 fakeIOTest = 
   runFakeIO (play 3 0) ["quit"] ~?= [introText, commandsText, summaryText, promptText]
-  -- TODO: build regression test

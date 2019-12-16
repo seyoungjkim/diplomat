@@ -11,6 +11,30 @@ import Test.HUnit
 import Test.QuickCheck
 import qualified State as S
 
+
+main :: IO ()
+main = do
+   _ <- runTestTT unitTests
+   quickCheck propHandsContainSpecificCard
+   quickCheck propNonEmptyHand
+   quickCheck propUnionQuestions
+   quickCheck propIntersectionQuestions
+   quickCheck propNotQuestion
+   quickCheck propEqualsQuestion
+   quickCheck propEqualsQuestionSame
+   quickCheck propGeQuestionSame
+   quickCheck propGtQuestionSame
+   quickCheck propLtQuestionSame
+   quickCheck propLeQuestionSame
+   quickCheck propDeMorgansLaw1
+   quickCheck propDeMorgansLaw2
+   quickCheck propIntVal
+   quickCheck propCardinalitySimple
+   quickCheck propAllCardsDistributed
+   quickCheck propCardsEvenDistributed
+   quickCheck propNoFaceUpOnStart
+   return ()
+
 -------------------- Question Tests --------------------
 
 -- for all cards c in a hand h, getAnswer (SpecificCard c) h is true iff
@@ -61,6 +85,20 @@ propLtQuestionSame qi h = not $ getAnswer (Lt qi qi) h
 -- le always returns true if given two identical questions
 propLeQuestionSame :: QInt -> PlayerHand -> Bool
 propLeQuestionSame qi = getAnswer (Le qi qi)
+
+propDeMorgansLaw1 :: Question -> Question -> PlayerHand -> Bool
+propDeMorgansLaw1 q1 q2 h = getAnswer (Not (Union q1 q2)) h == 
+  getAnswer (Intersection (Not q1) (Not q2)) h
+
+propDeMorgansLaw2 :: Question -> Question -> PlayerHand -> Bool
+propDeMorgansLaw2 q1 q2 h = getAnswer (Not (Intersection q1 q2)) h == 
+  getAnswer (Union (Not q1) (Not q2)) h
+
+propIntVal :: Int -> PlayerHand -> Bool
+propIntVal i h = i == getAnswerInt (IntVal i) h
+
+propCardinalitySimple :: PlayerHand -> Bool
+propCardinalitySimple h = getAnswerInt (Cardinality Hand) h == length h
 
 instance Arbitrary Card where
   arbitrary = elements deck
@@ -124,14 +162,16 @@ propAllCardsDistributed n a = n > a && a >= 0 ==>
   length allCards == 52 && Set.size (Set.fromList allCards) == 52
 
 -- cards evenly distributed when game is initialized
-propCardsEvenDistributed :: Int -> Int -> Property
-propCardsEvenDistributed n a = n > a && a >= 0 && n <= 52 ==> 
-  let gs = initialGameStore n a
+propCardsEvenDistributed :: Int -> Int -> Bool
+propCardsEvenDistributed n a = 
+  let n' = n `mod` 52 + 1
+      a' = a `mod` n'
+      gs = initialGameStore n' a'
       maxSize = 
         Prelude.foldr (\p acc -> max (Set.size (hand p)) acc) 0 (players gs)
       minSize = 
         Prelude.foldr (\p acc -> min (Set.size (hand p)) acc) 52 (players gs) in
-  maxSize == minSize || maxSize + 1 == minSize && 
+  (maxSize == minSize || maxSize - 1 == minSize) && 
   Prelude.foldr 
     (\p acc -> Set.size (hand p) > 0 && Set.size (hand p) <= 52 && acc) 
     True (players gs)
@@ -144,87 +184,96 @@ propNoFaceUpOnStart n a = n > a && a >= 0 ==>
 
 unitTests :: Test
 unitTests = TestList [
-  testPlayerTurn ~?= True,
-  testPlayerTurnAllGo ~?= True,
-  testCheckWin ~?= True,
-  testCheckTie ~?= True,
-  testWinPrint ~?= True,
-  testCorrectPlayerWin ~?= True,
-  testClaimRankLayOut ~?= True,
-  testClaimRank ~?= True,
-  testLayOut ~?= True ]
+  testPlayerTurn,
+  testPlayerTurnAllGo,
+  testCheckWin,
+  testCheckTie,
+  testWinPrint,
+  testCorrectPlayerWin,
+  testClaimRankLayOut,
+  testClaimRank,
+  testLayOut ]
 
 -- unit test for the right person's turn
-testPlayerTurn :: Bool
+testPlayerTurn :: Test
 testPlayerTurn = 
   let gs = initialGameStore 4 0
       firstPlayerId = pid (players gs ! 0)
       (ps2, gs2) = S.runState (move (Map.keys (players gs))) gs
       secondPlayerId = head ps2 in
-  firstPlayerId == 0 && secondPlayerId == 1
+  TestList [firstPlayerId ~?= 0, secondPlayerId ~?= 1]
 
 -- unit test for the right person's turn after going around all players
-testPlayerTurnAllGo :: Bool
+testPlayerTurnAllGo :: Test
 testPlayerTurnAllGo = 
   let gs = initialGameStore 4 0
       firstPlayerId = pid (players gs ! 0)
-      (_, gs2) = S.runState (move (Map.keys (players gs))) gs
-      (_, gs3) = S.runState (move (Map.keys (players gs2))) gs2
-      (_, gs4) = S.runState (move (Map.keys (players gs3))) gs3
-      (ps5, gs5) = S.runState (move (Map.keys (players gs4))) gs4
+      (ps2, gs2) = S.runState (move (Map.keys (players gs))) gs
+      (ps3, gs3) = S.runState (move ps2) gs2
+      (ps4, gs4) = S.runState (move ps3) gs3
+      (ps5, gs5) = S.runState (move ps4) gs4
       lastPlayerId = head ps5 in
-  firstPlayerId == lastPlayerId
+  lastPlayerId ~?= firstPlayerId
 
 -- unit test for the end game where a player wins
-testCheckWin :: Bool
-testCheckWin = checkEnd winState
+testCheckWin :: Test
+testCheckWin = checkEnd winState ~?= True
 
 -- unit test for the end game where there is a tie
-testCheckTie :: Bool
-testCheckTie = checkEnd tieState
+testCheckTie :: Test
+testCheckTie = checkEnd tieState ~?= True
 
 -- unit test for what gets printed at the end
-testWinPrint :: Bool
-testWinPrint = getPlayerRanksString winState == ""
+testWinPrint :: Test
+testWinPrint = getPlayerRanksString winState ~?= 
+  "\nPlayer 0 collected 6 ranks:\n\
+  \-Ace\n-Two\n-Three\n-Four\n-Five\n-Six\n\n\
+  \Player 1 collected 6 ranks:\n\
+  \-Seven\n-Eight\n-Nine\n-Ten\n-Jack\n-Queen\n\n\
+  \Player 2 collected 1 ranks:\n\
+  \-King\n\n\
+  \Player 3 collected 0 ranks: :(\n"
 
-testCorrectPlayerWin :: Bool
-testCorrectPlayerWin = pid (getWinner winState) == 0
+testCorrectPlayerWin :: Test
+testCorrectPlayerWin = pid (getWinner winState) ~?= 0
 
 -- unit test to check that ranks are claimed correctly
-testClaimRank :: Bool
+testClaimRank :: Test
 testClaimRank =
   let store = fakeGameAllCards in
-  case claimRank store (players store ! 0) Ace of
-    Just store' -> (ranks (players store ! 0) == Set.empty) && 
-                (Set.size (hand (players store ! 0)) == 52) &&
-                (ranks (players store' ! 0) == Set.fromList [Ace]) && 
-                (Set.size (hand (players store' ! 0)) == 48)
-    Nothing -> False
+  case claimRank store (pid (players store ! 0)) Ace of
+    Just store' -> TestList [ ranks (players store ! 0) ~?= Set.empty,
+                Set.size (hand (players store ! 0)) ~?= 52,
+                ranks (players store' ! 0) ~?= Set.fromList [Ace],
+                Set.size (hand (players store' ! 0)) ~?= 48 ]
+    Nothing -> True ~?= False --failure case
 
 -- write test for ranks being claimed with laid out cards
-testClaimRankLayOut :: Bool
+testClaimRankLayOut :: Test
 testClaimRankLayOut = 
   let store  = unshuffledGame
       card = Card Ace Heart
       store2 = layoutCard store (players store ! 0) card in
-  case claimRank store2 (players store2 ! 0) Ace of
+  case claimRank store2 (pid (players store2 ! 0)) Ace of
     Just store3 -> 
-      Prelude.null (laidOutCards store) &&
-      (laidOutCards store2 == [card]) &&
-      Prelude.null (laidOutCards store3) &&
-      (Set.size (hand (players store ! 0)) - 4 == Set.size (hand (players store3 ! 0))) &&
-      (ranks (players store3 ! 0) == Set.fromList [Ace]) 
-    Nothing -> False
+      TestList [
+      Prelude.null (laidOutCards store) ~?= True, 
+      laidOutCards store2 ~?= [card], 
+      Prelude.null (laidOutCards store3) ~?= True, 
+      Set.size (hand (players store ! 0)) - 4 ~?= Set.size (hand (players store3 ! 0)), 
+      ranks (players store3 ! 0) ~?= Set.fromList [Ace] ]
+    Nothing -> True ~?= False --error case
   
 -- unit test to check that cards are laid out correctly
-testLayOut :: Bool
+testLayOut :: Test
 testLayOut = 
   let gs  = unshuffledGame
       card = Card Ace Heart
       gs2 = layoutCard gs (players gs ! 0) card in
-  Prelude.null (laidOutCards gs) &&
-  laidOutCards gs2 == [card] &&
-  Set.size (hand (players gs ! 0)) - 1 == Set.size (hand (players gs2 ! 0))
+  TestList [ 
+  Prelude.null (laidOutCards gs) ~?= True,
+  laidOutCards gs2 ~?= [card],
+  Set.size (hand (players gs ! 0)) - 1 ~?= Set.size (hand (players gs2 ! 0))]
 
 
 -------------- Helper functions to make writing test cases easier -------------
@@ -239,7 +288,7 @@ winState =
   where
     createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
-      Map.insert id (P id Set.empty r False) (createPlayersWin ids ranks)
+      Map.insert id (P id Set.empty r False Map.empty) (createPlayersWin ids ranks)
     createPlayersWin _ _ = Map.empty
 
 tieState :: GameStore
@@ -252,7 +301,7 @@ tieState =
   where
     createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
-      Map.insert id (P id Set.empty r False) (createPlayersWin ids ranks)
+      Map.insert id (P id Set.empty r False Map.empty) (createPlayersWin ids ranks)
     createPlayersWin _ _ = Map.empty
 
 -- p1 has all diamonds, p2 has all clubs, p3 has all hearts, p4 has all spades
@@ -266,7 +315,7 @@ unshuffledGame =
   where
     createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
-      Map.insert id (P id h Set.empty False) (createPlayersUnshuffled ids hands)
+      Map.insert id (P id h Set.empty False Map.empty) (createPlayersUnshuffled ids hands)
     createPlayersUnshuffled _ _ = Map.empty
 
 
@@ -296,6 +345,6 @@ fakeGameAllCards =
   where
     createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
-      Map.insert id (P id h Set.empty False) (createPlayersUnshuffled ids hands)
+      Map.insert id (P id h Set.empty False Map.empty) (createPlayersUnshuffled ids hands)
     createPlayersUnshuffled _ _ = Map.empty
 
