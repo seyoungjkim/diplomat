@@ -20,37 +20,40 @@ data Rank = Ace   | Two  | Three | Four | Five  | Six | Seven
 data Suit = Diamond | Club | Heart | Spade
   deriving (Eq, Show, Ord, Enum, Bounded, Read)
 
+-- Stores info on a player, including if they are an AI 
+-- and the AI's current guess state
 data Player = 
-  P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool, aiGuess :: CardGuess }
+  P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, 
+      ai :: Bool, aiGuess :: CardGuess }
   deriving (Eq, Show)
-
-type CardGuess = Map Card (Set Int)
 
 type PlayerHand = Set Card
 
+-- Used by AI to keep track of possible owners of cards
+type CardGuess = Map Card (Set Int)
+
 -------------------------------------------------------------------------------
+-- | adds rank of card to the given int
 plusCard :: Card -> Int -> Int
 plusCard c i = fromEnum (rank c) + 1 + i
 
+-- | multiplies rank of card with the given int
 multiplyCard :: Card -> Int -> Int
 multiplyCard c i = (fromEnum (rank c) + 1) * i
 
 -- | creates a deck of 52 cards
 deck :: [Card]
 deck = do
-       r <- [Ace ..]
-       Card r <$> [Diamond .. ]
-
--- | shuffles a deck
-shuffleDeck :: [Card] -> [Card]
-shuffleDeck d = let (d', _) = fisherYates (mkStdGen 0) d in d'
+  r <- [Ace ..]
+  Card r <$> [Diamond .. ]
 
 -- | shuffle and deal deck to given number of players
-dealDeck :: Int -> [Card] -> [PlayerHand]
-dealDeck n cs = let d = 52 `div` n
-                    m = 52 `mod` n 
-                    r = m * (d + 1)
-                    cs' = shuffleDeck cs in
+dealDeck :: Int -> Int -> [Card] -> [PlayerHand]
+dealDeck seed n cs = 
+  let d = 52 `div` n
+      m = 52 `mod` n 
+      r = m * (d + 1)
+      cs' = shuffleDeck seed cs in
   if m > 0 
     then deal (d + 1) (Prelude.take r cs') ++ deal d (Prelude.drop r cs')
   else deal d cs'
@@ -59,7 +62,11 @@ dealDeck n cs = let d = 52 `div` n
     deal n l = let (hd, tl) = Prelude.splitAt n l in
       Set.fromList hd : deal n tl
 
--- shuffle deck helper functions
+-- | shuffles a deck
+shuffleDeck :: Int -> [Card] -> [Card]
+shuffleDeck seed d = let (d', _) = fisherYates (mkStdGen seed) d in d'
+
+-- | shuffle deck helper functions
 fisherYatesStep :: RandomGen g => (Map Int a, g) -> (Int, a) -> (Map Int a, g)
 fisherYatesStep (m, gen) (i, x) = 
   ((Map.insert j x . Map.insert i (m ! j)) m, gen')
@@ -76,10 +83,7 @@ fisherYates gen l =
     numerate = zip [1..]
     initial x gen = (Map.singleton 0 x, gen)
 
-
-
 -------------------------------- Strings in Game ------------------------------
-
 instructions :: String
 instructions = "=== INSTRUCTIONS ===\n\
                \Diplomat is very similar to the popular card game, Go Fish.\n\

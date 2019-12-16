@@ -53,4 +53,4 @@ These were auto-generated from `cabal init`.
 We use QuickCheck, HUnit, Random, and DList in addition to core Haskell libraries.
 
 ## How to build
-Run `cabal build` followed by `cabal exec diplomat`. Then you're playing!
+Run `cabal new-build` followed by `cabal new-exec diplomat NUM_PLAYERS NUM_AI`. Then you're playing!

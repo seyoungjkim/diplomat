@@ -44,13 +44,13 @@ initialAiGuess aid aiHand playerIds = List.foldr
         filteredIds = List.filter (\i -> i /= aid) playerIds
 
 -- | initializes game given the number of non-AI players and AIs
-initialGameStore :: Int -> Int -> GameStore
-initialGameStore n a =
+initialGameStore :: Int -> Int -> Int -> GameStore
+initialGameStore seed n a =
   let total = n + a
       pids = [0..n - 1]
       aids = [n..total - 1]
       allIds = pids ++ aids
-      hands = dealDeck total deck
+      hands = dealDeck seed total deck
       players = createPlayers pids (Prelude.take n hands) False allIds
       ais = createPlayers aids (Prelude.drop n hands) True allIds
       moveBreaks = List.foldr (\i acc -> (MBreak i) : acc) [] allIds in

@@ -40,7 +40,6 @@ runAiTurn store playerId =
   let store' = claimAllPossibleRanks store playerId
       allPlayers = players store' in
     case Map.lookup playerId (players store') of
-      Nothing -> store'
       Just askingPlayer -> 
         let guess = filterKnownCards (laidOutCards store') (aiGuess askingPlayer) in
           case getNextCard guess of
@@ -63,4 +62,5 @@ runAiTurn store playerId =
                     runAiTurn store''' playerId
                   else store'' { prevMoves = updatedPrevMoves }
                 Nothing -> store'
+            Nothing -> store'
       Nothing -> store'

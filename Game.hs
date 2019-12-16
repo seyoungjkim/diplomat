@@ -13,6 +13,7 @@ import BuildQuestion
 import GamePieces
 import GameState
 import AI
+import System.Random
 
 class Monad m => Output m where
   write :: String -> m ()
@@ -26,10 +27,17 @@ instance Input IO where
 
 -------------------------------------------------------------------------------
 
+-- | main function
+play :: Int -> Int -> IO ()
+play numPlayers numAi = do
+  seed <- randomIO :: IO Int
+  play' seed numPlayers numAi
+
 -- | make moves until someone wins
-play :: (Input m, Output m) => Int -> Int -> m ()
-play numPlayers numAI = let initialStore = initialGameStore numPlayers numAI
-                            sequence = [0..numPlayers + numAI - 1] in do
+play' :: (Input m, Output m) => Int -> Int -> Int -> m ()
+play' seed numPlayers numAi = 
+  let initialStore = initialGameStore seed numPlayers numAi
+      sequence = [0..numPlayers + numAi - 1] in do
   write introText
   write commandsText
   goIntro sequence initialStore

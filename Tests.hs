@@ -11,29 +11,28 @@ import Test.HUnit
 import Test.QuickCheck
 import qualified State as S
 
-
 main :: IO ()
 main = do
-   _ <- runTestTT unitTests
-   quickCheck propHandsContainSpecificCard
-   quickCheck propNonEmptyHand
-   quickCheck propUnionQuestions
-   quickCheck propIntersectionQuestions
-   quickCheck propNotQuestion
-   quickCheck propEqualsQuestion
-   quickCheck propEqualsQuestionSame
-   quickCheck propGeQuestionSame
-   quickCheck propGtQuestionSame
-   quickCheck propLtQuestionSame
-   quickCheck propLeQuestionSame
-   quickCheck propDeMorgansLaw1
-   quickCheck propDeMorgansLaw2
-   quickCheck propIntVal
-   quickCheck propCardinalitySimple
-   quickCheck propAllCardsDistributed
-   quickCheck propCardsEvenDistributed
-   quickCheck propNoFaceUpOnStart
-   return ()
+  _ <- runTestTT unitTests
+  quickCheck propHandsContainSpecificCard
+  quickCheck propNonEmptyHand
+  quickCheck propUnionQuestions
+  quickCheck propIntersectionQuestions
+  quickCheck propNotQuestion
+  quickCheck propEqualsQuestion
+  quickCheck propEqualsQuestionSame
+  quickCheck propGeQuestionSame
+  quickCheck propGtQuestionSame
+  quickCheck propLtQuestionSame
+  quickCheck propLeQuestionSame
+  quickCheck propDeMorgansLaw1
+  quickCheck propDeMorgansLaw2
+  quickCheck propIntVal
+  quickCheck propCardinalitySimple
+  quickCheck propAllCardsDistributed
+  quickCheck propCardsEvenDistributed
+  quickCheck propNoFaceUpOnStart
+  return ()
 
 -------------------- Question Tests --------------------
 
@@ -153,20 +152,20 @@ instance CoArbitrary Card where
 
 -------------------- GameState Tests --------------------
 -- all cards distributed when game is initialized
-propAllCardsDistributed :: Int -> Int -> Property
-propAllCardsDistributed n a = n > a && a >= 0 ==> 
-  let gs = initialGameStore n a
+propAllCardsDistributed :: Int -> Int -> Int -> Property
+propAllCardsDistributed s n a = n >= 0 && a >= 0 && (n + a > 0) ==> 
+  let gs = initialGameStore s n a
       allCards :: [Card]
       allCards = 
         Prelude.foldr (\p acc -> Set.toList (hand p) ++ acc) [] (players gs) in
   length allCards == 52 && Set.size (Set.fromList allCards) == 52
 
 -- cards evenly distributed when game is initialized
-propCardsEvenDistributed :: Int -> Int -> Bool
-propCardsEvenDistributed n a = 
-  let n' = n `mod` 52 + 1
-      a' = a `mod` n'
-      gs = initialGameStore n' a'
+propCardsEvenDistributed :: Int -> Int -> Int -> Bool
+propCardsEvenDistributed s n a = 
+  let n' = n `mod` 46 + 1
+      a' = a `mod` 46 + 1
+      gs = initialGameStore s n' a'
       maxSize = 
         Prelude.foldr (\p acc -> max (Set.size (hand p)) acc) 0 (players gs)
       minSize = 
@@ -177,11 +176,12 @@ propCardsEvenDistributed n a =
     True (players gs)
 
 -- no face up cards when game initialized
-propNoFaceUpOnStart :: Int -> Int -> Property
-propNoFaceUpOnStart n a = n > a && a >= 0 ==> 
-  let gs = initialGameStore n a in
+propNoFaceUpOnStart :: Int -> Int -> Int -> Property
+propNoFaceUpOnStart s n a = n >= 0 && a >= 0 ==> 
+  let gs = initialGameStore s n a in
   Prelude.null (laidOutCards gs)
 
+-- all unit tests
 unitTests :: Test
 unitTests = TestList [
   testPlayerTurn,
@@ -197,7 +197,7 @@ unitTests = TestList [
 -- unit test for the right person's turn
 testPlayerTurn :: Test
 testPlayerTurn = 
-  let gs = initialGameStore 4 0
+  let gs = initialGameStore 0 4 0
       firstPlayerId = pid (players gs ! 0)
       (ps2, gs2) = S.runState (move (Map.keys (players gs))) gs
       secondPlayerId = head ps2 in
@@ -206,7 +206,7 @@ testPlayerTurn =
 -- unit test for the right person's turn after going around all players
 testPlayerTurnAllGo :: Test
 testPlayerTurnAllGo = 
-  let gs = initialGameStore 4 0
+  let gs = initialGameStore 0 4 0
       firstPlayerId = pid (players gs ! 0)
       (ps2, gs2) = S.runState (move (Map.keys (players gs))) gs
       (ps3, gs3) = S.runState (move ps2) gs2
@@ -234,6 +234,7 @@ testWinPrint = getPlayerRanksString winState ~?=
   \-King\n\n\
   \Player 3 collected 0 ranks: :(\n"
 
+-- unit test that player 0 wins the winState
 testCorrectPlayerWin :: Test
 testCorrectPlayerWin = pid (getWinner winState) ~?= 0
 
