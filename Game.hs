@@ -44,119 +44,130 @@ displayEnd sequence store =
   write $ getPlayerRanksString store
 
 goIntro :: (Input m, Output m) => [Int] -> GameStore -> m ()
-goIntro sequence store = if (checkEnd store) then displayEnd sequence store
-  else let player = players store ! head sequence 
-           playerId = pid player
-           clearedPrevMoves = clearPrevMoves playerId (prevMoves store)
-           store' = store { prevMoves = clearedPrevMoves } in
-       if ai (players store ! head sequence) then goIntroAI sequence store'
-       else goIntroPlayer sequence store' 
-         (hasPlayerBreak playerId (prevMoves store))
+goIntro sequence@(playerId:_) store = if (checkEnd store) then displayEnd sequence store
+  else case Map.lookup playerId (players store) of
+    Just player -> let clearedPrevMoves = clearPrevMoves playerId (prevMoves store)
+                       store' = store { prevMoves = clearedPrevMoves } in
+      if ai player then goIntroAI sequence store'
+      else goIntroPlayer sequence store' 
+        (hasPlayerBreak playerId (prevMoves store))
+    Nothing -> return () -- Error
+goIntro _ _ = return () -- Error
 
 goIntroAI :: (Input m, Output m) => [Int] -> GameStore -> m ()
-goIntroAI sequence store = 
-  let player = players store ! head sequence 
-      store' = runAiTurn store player
-      (sequence', _) = S.runState (move sequence) store' in
-    goIntro sequence' store'
+goIntroAI sequence@(playerId:_) store = 
+  case Map.lookup playerId (players store) of
+    Just player ->
+      let store' = runAiTurn store player
+          (sequence', _) = S.runState (move sequence) store' in
+        goIntro sequence' store'
+    Nothing -> return () -- Error
+goIntroAI _ _ = return () -- Error
 
 goIntroPlayer :: (Input m, Output m) => [Int] -> GameStore -> Bool -> m ()
-goIntroPlayer sequence store isNewTurn =
-  let player = players store ! head sequence 
-      playerId = pid player in do
-    if isNewTurn then do
-      write $ ">> It's Player " ++ show playerId ++ "'s turn!! \ 
-              \Press <enter> to continue."
-      _ <- input
-      write $ summaryText ++ 
-              (prettyPrintList (filterMoveBreaks (prevMoves store)) 
-              "\nThere is nothing to summarize :o") ++ "\n"
-    else write $ "It's still Player " ++ show playerId ++ "'s turn :)\n"
-    write promptText
-    playerCommand <- input
-    case playerCommand of
-      "help" -> write ("\n" ++ commandsText ++ "\n") >>
-                goIntro sequence store
-      "instr" -> write ("\n" ++ instructions ++ "\n") >>
-                goIntro sequence store
-      "quit" -> return ()
-      "hand" -> write ("\nYour hand:" ++ 
-                      (prettyPrintList (Set.toList (hand player)) 
-                      "\nYou have no cards in your hand left :o") ++ "\n") >>
-                goIntro sequence store
-      "laidout" -> write ("\nCurrent laid out cards:" ++ 
-                          (prettyPrintList (laidOutCards store) 
-                          "\nThere are no laid out cards :o") ++ "\n") >>
+goIntroPlayer sequence@(playerId:_) store isNewTurn =
+  case Map.lookup playerId (players store) of
+    Just player -> do
+      if isNewTurn then do
+        write $ ">> It's Player " ++ show playerId ++ "'s turn!! \ 
+                \Press <enter> to continue."
+        _ <- input
+        write $ summaryText ++ 
+                (prettyPrintList (filterMoveBreaks (prevMoves store)) 
+                "\nThere is nothing to summarize :o") ++ "\n"
+      else write $ "It's still Player " ++ show playerId ++ "'s turn :)\n"
+      write promptText
+      playerCommand <- input
+      case playerCommand of
+        "help" -> write ("\n" ++ commandsText ++ "\n") >>
                   goIntro sequence store
-      "claimed" -> write ("\nYour current claimed ranks:" ++ 
-                          (prettyPrintList (Set.toList (ranks player)) 
-                          "\nYou haven't claimed any ranks yet :o") ++ 
-                          "\n") >>
+        "instr" -> write ("\n" ++ instructions ++ "\n") >>
                   goIntro sequence store
-      "claim" -> goClaim sequence store
-      "ask" -> goQuestion sequence store
-      "past" -> write "\nPrev store moves:" >> -- for debugging purposes only
-                write (show (prevMoves store) ++ "\n") >>
-                write "\nPrev store' moves [CLEARED]:" >>
-                write (show (prevMoves store) ++ "\n") >>
+        "quit" -> return ()
+        "hand" -> write ("\nYour hand:" ++ 
+                        (prettyPrintList (Set.toList (hand player)) 
+                        "\nYou have no cards in your hand left :o") ++ "\n") >>
+                  goIntro sequence store
+        "laidout" -> write ("\nCurrent laid out cards:" ++ 
+                            (prettyPrintList (laidOutCards store) 
+                            "\nThere are no laid out cards :o") ++ "\n") >>
+                    goIntro sequence store
+        "claimed" -> write ("\nYour current claimed ranks:" ++ 
+                            (prettyPrintList (Set.toList (ranks player)) 
+                            "\nYou haven't claimed any ranks yet :o") ++ 
+                            "\n") >>
+                    goIntro sequence store
+        "claim" -> goClaim sequence store
+        "ask" -> goQuestion sequence store
+        "past" -> write "\nPrev store moves:" >> -- for debugging purposes only
+                  write (show (prevMoves store) ++ "\n") >>
+                  write "\nPrev store' moves [CLEARED]:" >>
+                  write (show (prevMoves store) ++ "\n") >>
+                  goIntro sequence store
+        "all" -> write "\nEntire game store:" >>  -- for debugging purposes only
+                write (show (players store) ++ "\n") >>
                 goIntro sequence store
-      "all" -> write "\nEntire game store:" >>  -- for debugging purposes only
-              write (show (players store) ++ "\n") >>
-              goIntro sequence store
-      _ -> write "\nNot a valid menu command. Try again!\n" >>
-          goIntro sequence store
+        _ -> write "\nNot a valid menu command. Try again!\n" >>
+            goIntro sequence store
+    Nothing -> return () -- Error
+goIntroPlayer _ _ _ = return () -- Error
 
 goClaim :: (Input m, Output m) => [Int] -> GameStore -> m ()
-goClaim sequence store =
-  let player = players store ! head sequence in do
-    write "\n>> Enter a rank to claim."
-    toClaim <- input
-    case toClaim of
-      "quit" -> return ()
-      "help" -> write ("\n" ++ claimHelpText ++ "\n") >>
-                goClaim sequence store
-      "nvm" -> write "\nNot claiming any ranks." >>
-               goIntro sequence store
-      _ -> case (readMaybe toClaim :: Maybe Rank) of
-              Just r -> case claimRank store player r of
-                Just store' -> do
-                  write ("\nCongrats, you successfully claimed the rank " ++ 
-                        show r ++ " :)\n")
-                  goIntro sequence store'
-                Nothing ->
-                  write ("\nYou weren't able to claim the rank " ++ show r ++
-                        " :(\n") >>
-                  goIntro sequence store
-              _ -> write "\nPlease enter a valid rank:" >>
+goClaim sequence@(playerId:_) store =
+  case Map.lookup playerId (players store) of
+    Just player -> do
+      write "\n>> Enter a rank to claim."
+      toClaim <- input
+      case toClaim of
+        "quit" -> return ()
+        "help" -> write ("\n" ++ claimHelpText ++ "\n") >>
                   goClaim sequence store
+        "nvm" -> write "\nNot claiming any ranks." >>
+                goIntro sequence store
+        _ -> case (readMaybe toClaim :: Maybe Rank) of
+                Just r -> case claimRank store player r of
+                  Just store' -> do
+                    write ("\nCongrats, you successfully claimed the rank " ++ 
+                          show r ++ " :)\n")
+                    goIntro sequence store'
+                  Nothing ->
+                    write ("\nYou weren't able to claim the rank " ++ show r ++
+                          " :(\n") >>
+                    goIntro sequence store
+                _ -> write "\nPlease enter a valid rank:" >>
+                    goClaim sequence store
+    Nothing -> return () -- Error
+goClaim _ _ = return () -- Error
 
 goQuestion :: (Input m, Output m) => [Int] -> GameStore -> m ()
-goQuestion sequence store = 
-  let (sequence', _) = S.runState (move sequence) store in do
-    let player = players store ! head sequence
-        playerId = pid player
-    write ("\n>> Player " ++ show playerId ++ 
-          ": Enter a player id to choose a player to ask a question to.")
-    playerIdToQuestion <- input
-    case (readMaybe playerIdToQuestion :: Maybe Int) of
-      Just i -> case Map.lookup i (players store) of
-        Just playerToQuestion -> do
-          write ("\n>> Player " ++ show playerId ++ ": Enter a question.")
-          write questionOptionsInitial
-          q <- input
-          case q of
-            "1" -> askSpecificCard player playerToQuestion sequence store
-            "2" -> createQuestion player playerToQuestion sequence store
-            "quit" -> return () -- quit the game
-            "none" -> let store' = store { prevMoves = (prevMoves store) ++ 
-                                           [ (MBreak playerId) ] } in
-                      write "\nYou have skipped your turn.\n===========\n" >>
-                      goIntro sequence' store' -- skip turn
-            _   -> write "\nInvalid question" >> goQuestion sequence store
-        Nothing -> write "\nPlease enter a valid player id" >>
-                   goQuestion sequence store
-      Nothing -> write "\nPlease enter an integer player id" >>
-                 goQuestion sequence store
+goQuestion sequence@(playerId:_) store = 
+  let (sequence', _) = S.runState (move sequence) store in
+    case Map.lookup playerId (players store) of
+      Just player -> do
+        write ("\n>> Player " ++ show playerId ++ 
+              ": Enter a player id to choose a player to ask a question to.")
+        playerIdToQuestion <- input
+        case (readMaybe playerIdToQuestion :: Maybe Int) of
+          Just i -> case Map.lookup i (players store) of
+            Just playerToQuestion -> do
+              write ("\n>> Player " ++ show playerId ++ ": Enter a question.")
+              write questionOptionsInitial
+              q <- input
+              case q of
+                "1" -> askSpecificCard player playerToQuestion sequence store
+                "2" -> createQuestion player playerToQuestion sequence store
+                "quit" -> return () -- quit the game
+                "none" -> let store' = store { prevMoves = (prevMoves store) ++ 
+                                              [ (MBreak playerId) ] } in
+                          write "\nYou have skipped your turn.\n===========\n" >>
+                          goIntro sequence' store' -- skip turn
+                _   -> write "\nInvalid question" >> goQuestion sequence store
+            Nothing -> write "\nPlease enter a valid player id" >>
+                      goQuestion sequence store
+          Nothing -> write "\nPlease enter an integer player id" >>
+                    goQuestion sequence store
+      Nothing -> return () -- Error
+goQuestion _ _ = return () -- Error
 
 askSpecificCard :: (Input m, Output m) => 
   Player -> Player -> [Int] -> GameStore -> m ()

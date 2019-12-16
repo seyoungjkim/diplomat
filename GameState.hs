@@ -29,7 +29,8 @@ type Game = S.State GameStore [Int]
 data GameStore = G { players :: Map Int Player, 
                      laidOutCards :: [Card], 
                      currQuestion :: Question,
-                     prevMoves :: [Move] }       
+                     prevMoves :: [Move] }    
+  deriving (Show)   
 
 showBool :: Bool -> String
 showBool True = "Yes! :)"
@@ -42,16 +43,16 @@ initialAiGuess aiHand playerIds = List.foldr
   where filteredDeck = List.foldr (\c acc -> 
                          if Set.member c aiHand then acc else c : acc) [] deck
 
--- | initializes game given the number of total players and AIs
+-- | initializes game given the number of non-AI players and AIs
 initialGameStore :: Int -> Int -> GameStore
 initialGameStore n a =
-  let n' = n - a
-      pids = [0..n' - 1]
-      aids = [n'..n - 1]
+  let total = n + a
+      pids = [0..n - 1]
+      aids = [n..total]
       allIds = pids ++ aids
-      hands = dealDeck n deck
-      players = createPlayers pids (Prelude.take n' hands) False allIds
-      ais = createPlayers aids (Prelude.drop n' hands) True allIds
+      hands = dealDeck total deck
+      players = createPlayers pids (Prelude.take n hands) False allIds
+      ais = createPlayers aids (Prelude.drop n hands) True allIds
       moveBreaks = List.foldr (\i acc -> (MBreak i) : acc) [] allIds in
   G (Map.union players ais) [] Blank moveBreaks
   where
