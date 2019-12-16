@@ -21,8 +21,10 @@ data Suit = Diamond | Club | Heart | Spade
   deriving (Eq, Show, Ord, Enum, Bounded, Read)
 
 data Player = 
-  P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool }
+  P { pid :: Int, hand :: PlayerHand, ranks :: Set Rank, ai :: Bool, aiGuess :: CardGuess }
   deriving (Eq, Show)
+
+type CardGuess = Map Card (Set Int)
 
 type PlayerHand = Set Card
 
@@ -73,3 +75,56 @@ fisherYates gen l =
     toElems (x, y) = (Map.elems x, y)
     numerate = zip [1..]
     initial x gen = (Map.singleton 0 x, gen)
+
+
+
+-------------------------------- Strings in Game ------------------------------
+
+instructions :: String
+instructions = "=== INSTRUCTIONS ===\n\
+               \Diplomat is very similar to the popular card game, Go Fish.\n\
+               \Cards are distributed evenly among all players, and then \n\
+               \players take turns questioning each other. \n\nThe goal of \
+               \the game is to collect as many ranks as possible,\nwhere \
+               \claiming a rank means collecting all four cards of the\nrank \
+               \(i.e. you can claim the Ace rank when you've located all\n\
+               \four Aces in the game). \n\n\
+               \On your turn, you can do the following actions:\n\n\
+               \  1. Ask another player if they have a specific card (i.e.\n\
+               \  Ace of Spades). If the anwer is yes, this card is laid out\n\
+               \  and all players can see it, and you can continue your turn\n\
+               \  and ask another question to any player. If the answer is\n\
+               \  No, your turn ends.\n\n\
+               \  2. Ask another player any Yes-No question about their hand\n\
+               \  (i.e. 'Do you have any Black Queens?'). Regardless if the\n\
+               \  answer is Yes or No, your turn ends.\n\n\
+               \At any point during your turn, you can claim a rank if you\n\
+               \know where all four cards of a rank are (AKA all four cards\n\
+               \are either in your hand or laid out).\n\
+               \====================\n"
+
+commandsText :: String
+commandsText = "Here are commands you can use:\n \
+           \help: to view what commands you can use\n \
+           \instr: to view Diplomat instructions\n \
+           \hand: to view the cards in your hand\n \
+           \laidout: to view currently laid-out cards\n \
+           \claimed: to view the ranks you have claimed\n \
+           \claim: to claim a rank\n \
+           \ask: to ask another player a question\n \
+           \quit: to quit the game.\n"
+
+introText :: String
+introText = "\nWelcome to Diplomat!\n"
+
+promptText :: String
+promptText = ">> Please type a command."
+
+summaryText :: String
+summaryText = "Summary since your last move:"
+
+claimHelpText :: String
+claimHelpText = "Here are commands you can use:\n \
+                \help: to view what commands you can use\n \
+                \nvm: to stop claiming a rank. \
+                \quit: to quit the game.\n"

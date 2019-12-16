@@ -2,17 +2,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 module AI where
 import GamePieces
+import GameState
 import Question
-import Game
 import Data.Set as Set
 import Data.Map as Map
-
-type CardGuess = Map Card (Set Int)
-
--- | initial map of all possible card assignments
-initialGuess :: GameStore -> CardGuess
-initialGuess store = let playerIds = Map.keysSet (players store) in
-  Prelude.foldr (\c m -> Map.insert c playerIds m) Map.empty deck
 
 -- | removes a player id from possible card guesses. if no players remain to be
 -- | guessed, then card is removed from the map of possible guesses.
@@ -31,12 +24,37 @@ claimAllPossibleRanks store player = claim store player [Ace ..] where
     Just store' -> claim store' player rs
 
 -- | choose a card and player to ask about (first pair found in map)
-getRandomCard :: CardGuess -> Maybe (Card, Int)
-getRandomCard = Map.foldrWithKey (\k x _ -> Set.lookupMin x >>= (\x' -> Just (k, x'))) Nothing
+getNextCard :: CardGuess -> Maybe (Card, Int)
+getNextCard = Map.foldrWithKey 
+  (\k x _ -> Set.lookupMin x >>= (\x' -> Just (k, x'))) Nothing
+
+-- | removes laid out cards from guess
+filterKnownCards :: [Card] -> CardGuess -> CardGuess
+filterKnownCards laidOutCards =
+  Map.filterWithKey (\c _ -> not (elem c laidOutCards))
 
 -- | claims all possible ranks, asks specific card question,
 -- | updates store
-runTurn :: (Input m, Output m) => Player -> [Int] -> GameStore -> m ()
-runTurn player sequence store = do
-  let store' = claimAllPossibleRanks store player in
-    runTurn player sequence store'
+runAiTurn :: GameStore -> Player -> GameStore
+runAiTurn store askingPlayer =
+  let store' = claimAllPossibleRanks store askingPlayer
+      guess = filterKnownCards (laidOutCards store') (aiGuess askingPlayer) in
+    case getNextCard guess of
+      Just (card, askedPlayerId) ->
+        case Map.lookup askedPlayerId (players store') of
+          Just askedPlayer ->
+            let question = SpecificCard card
+                answer = getAnswer question (hand askedPlayer)
+                guess' = updateCardGuess guess card askedPlayerId
+                updatedAskingPlayer = askingPlayer { aiGuess = guess' }
+                updatedPlayerMap = Map.insert (pid askingPlayer) 
+                                     updatedAskingPlayer (players store)
+                store'' = store' { players = updatedPlayerMap,
+                                   prevMoves = (prevMoves store) ++ 
+                                   [ (MQuestion (pid askingPlayer) 
+                                   question (pid askedPlayer) answer) ] } in
+            if answer then runAiTurn store'' askingPlayer 
+            else store'' { prevMoves = (prevMoves store'') ++ 
+                         [ (MBreak (pid askingPlayer)) ] }
+          Nothing -> store'
+      Nothing -> store'

@@ -54,8 +54,3 @@ We use QuickCheck, HUnit, Random, and DList in addition to core Haskell librarie
 
 ## How to build
 Run `cabal build` followed by `cabal exec diplomat`. Then you're playing!
-
-## TODO
-* Finish README
-* AI
-* Fake IO Test

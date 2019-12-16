@@ -2,50 +2,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Tests where
 import GamePieces
+import GameState
 import Question
-import Game
 import Data.Set as Set
 import Control.Monad (liftM,liftM2,liftM3)
 import Data.Map as Map
 import Test.HUnit
 import Test.QuickCheck
 import qualified State as S
-import qualified Data.DList as DL
-
--------------------- Fake IO --------------------
-
-type FakeIO = S.State FakeState
-
-data FakeState = FS
-  { fsWrite :: DL.DList String    -- what has been written
-  , fsInput :: [String]     -- what to read from
-  }
-
-instance Output FakeIO where
-  write s = do
-    st <- S.get
-    let oldLog = fsWrite st
-    let newLog = DL.append oldLog (DL.singleton s)
-    S.put $ st { fsWrite = newLog }
-
-instance Input FakeIO where
-  input = do
-    st <- S.get
-    let (v,rest) = case fsInput st of
-                     []     -> ("",[])
-                     (x:xs) -> (x,xs)
-    S.put $ st { fsInput = rest }
-    return v
-
-runFakeIO :: FakeIO () -> [String] -> [String]
-runFakeIO comp inputs =
-    DL.toList (fsWrite (S.execState comp initState))
-  where
-    initState = FS { fsWrite = DL.empty, fsInput = inputs }
-
-fakeIOTest :: Test
-fakeIOTest = 
-  runFakeIO (play 3 0) ["quit"] ~?= [introText, commandsText, summaryText, promptText] -- TODO: build regression test
 
 -------------------- Question Tests --------------------
 
@@ -181,8 +145,11 @@ propNoFaceUpOnStart n a = n > a && a >= 0 ==>
 unitTests :: Test
 unitTests = TestList [
   testPlayerTurn ~?= True,
+  testPlayerTurnAllGo ~?= True,
   testCheckWin ~?= True,
   testCheckTie ~?= True,
+  testWinPrint ~?= True,
+  testCorrectPlayerWin ~?= True,
   testClaimRankLayOut ~?= True,
   testClaimRank ~?= True,
   testLayOut ~?= True ]
@@ -196,6 +163,18 @@ testPlayerTurn =
       secondPlayerId = head ps2 in
   firstPlayerId == 0 && secondPlayerId == 1
 
+-- unit test for the right person's turn after going around all players
+testPlayerTurnAllGo :: Bool
+testPlayerTurnAllGo = 
+  let gs = initialGameStore 4 0
+      firstPlayerId = pid (players gs ! 0)
+      (_, gs2) = S.runState (move (Map.keys (players gs))) gs
+      (_, gs3) = S.runState (move (Map.keys (players gs2))) gs2
+      (_, gs4) = S.runState (move (Map.keys (players gs3))) gs3
+      (ps5, gs5) = S.runState (move (Map.keys (players gs4))) gs4
+      lastPlayerId = head ps5 in
+  firstPlayerId == lastPlayerId
+
 -- unit test for the end game where a player wins
 testCheckWin :: Bool
 testCheckWin = checkEnd winState
@@ -203,6 +182,13 @@ testCheckWin = checkEnd winState
 -- unit test for the end game where there is a tie
 testCheckTie :: Bool
 testCheckTie = checkEnd tieState
+
+-- unit test for what gets printed at the end
+testWinPrint :: Bool
+testWinPrint = getPlayerRanksString winState == ""
+
+testCorrectPlayerWin :: Bool
+testCorrectPlayerWin = pid (getWinner winState) == 0
 
 -- unit test to check that ranks are claimed correctly
 testClaimRank :: Bool
