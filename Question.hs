@@ -1,13 +1,19 @@
 {-# OPTIONS -Wincomplete-patterns #-}
+{-# OPTIONS_GHC -Werror #-}
+
 module Question where
-import GamePieces
-import Text.Read
 
+import GamePieces (Card, PlayerHand, plusCard, multiplyCard, deck)
+
+import Text.Read (readMaybe)
 import qualified State as S
-import qualified Data.Set as Set
-import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set (member, empty, union, intersection, filter)
+import Data.Maybe as Maybe ()
 
--------------------------------------------------------------------------
+
+-- Component of a question which results in a bool
+-- As the overall question must result in a bool, 
+--    this is the parent question type.
 data Question = 
   Blank
   | SpecificCard Card              -- -> bool
@@ -38,6 +44,7 @@ instance Show Question where
   show (Le qi1 qi2) = 
     "Is (" ++ show qi1 ++ ") less than or equal to (" ++ show qi2 ++ ")?"
 
+-- Component of a question which results in an int 
 data QInt = 
   BlankQInt
   | IntVal Int                     -- -> int
@@ -63,6 +70,7 @@ instance Show QInt where
   show (Quotient qi1 qi2) = 
     "(" ++ show qi1 ++ ") divided by (" ++ show qi2 ++ ")" 
 
+-- Component of a question which results in a hand 
 data QHand = 
   BlankQHand
   | Hand                           -- -> hand
@@ -126,16 +134,17 @@ getAnswerHand (Filter f qh) h =
 getAnswerHand BlankQHand _ = Set.empty
 
 ------------------------ Question Options for Building ------------------------
-
+-- | Prompts user for type of question to ask
 questionOptionsInitial :: String  
 questionOptionsInitial = 
-  " 1: Ask for a specific card \n \
-  \2: Build a more complex question \n \
+  " 1: Ask for a specific card \n\
+  \ 2: Build a more complex question \n \
   \none: skip your turn"
 
+-- | Current built-up Question
 questionOptionsBuilding :: Question ->  String  
 questionOptionsBuilding q = 
-  "So far your question is " ++ show q ++ ". Choose one:  \n \
+  "\n>> So far your question is " ++ show q ++ ". Choose one:  \n \
   \1: Non-empty (hand) \n \
   \2: Union (question) (question) \n \
   \3: Intersection (question) (question) \n \
@@ -146,9 +155,10 @@ questionOptionsBuilding q =
   \8: Greater than or equal to (int) (int) \n \
   \9: Less than or equal to (int) (int)"
 
+-- | Builds up Question from given String
 readQuestionOptionsBuilding :: String -> Maybe Question
 readQuestionOptionsBuilding s = 
-  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
+  case readMaybe s :: Maybe Int of
     Just 1 -> Just $ NonEmpty BlankQHand
     Just 2 -> Just $ Union Blank Blank
     Just 3 -> Just $ Intersection Blank Blank
@@ -159,10 +169,12 @@ readQuestionOptionsBuilding s =
     Just 8 -> Just $ Ge BlankQInt BlankQInt
     Just 9 -> Just $ Le BlankQInt BlankQInt
     _ -> Nothing
-                  
+     
+-- | Current built-up Question
+-- which needs to take in a QInt next
 questionIntOptions :: Question -> String  
 questionIntOptions q = 
-  "So far your question is " ++ show q ++ ". Choose one:  \n \
+  "\n>> So far your question is " ++ show q ++ ". Choose one:  \n \
    \1: Integer \n \
    \2: Cardinality (hand) \n \
    \3: SumHand (hand) \n \
@@ -173,9 +185,10 @@ questionIntOptions q =
    \8: Product (int) (int) \n \
    \9: Quotient (int) (int)"
 
+-- | Builds up QInt from given String
 readQuestionIntOptions :: String -> Maybe QInt
 readQuestionIntOptions s = 
-  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
+  case readMaybe s :: Maybe Int of
     Just 1 -> Just $ IntVal 0
     Just 2 -> Just $ Cardinality BlankQHand
     Just 3 -> Just $ SumHand BlankQHand
@@ -187,20 +200,20 @@ readQuestionIntOptions s =
     Just 9 -> Just $ Quotient BlankQInt BlankQInt
     _ -> Nothing
 
--- TODO: how to have user input filter?
-  -- I think they can create filters for each individual suit or rank for now?
-  -- And then they can just combine them themselves?
+-- | Current built-up Question
+-- which needs to take in a QHand next
 questionHandOptions :: Question -> String
 questionHandOptions q = 
-  "So far your question is " ++ show q ++ ". Choose one:  \n \
+  "\n>> So far your question is " ++ show q ++ ". Choose one:  \n \
   \1: Player's hand \n \
   \2: Filter (filter function) (hand) \n \
   \3: UnionHand (hand) (hand) \n \
   \4: IntersectionHand (hand) (hand)"
 
+-- | Builds up QHand from given String
 readQuestionHandOptions :: String -> Maybe QHand
 readQuestionHandOptions s = 
-  case readMaybe s :: Maybe Int of -- this should maybe be done with a map
+  case readMaybe s :: Maybe Int of
     Just 1 -> Just Hand
     Just 2 -> Just $ Filter (const True) BlankQHand
     Just 3 -> Just $ UnionHand BlankQHand BlankQHand

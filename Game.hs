@@ -2,23 +2,40 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Game where
 
-import qualified State as S
-import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
-import qualified Data.List as List
-import Data.Map as Map
-import Text.Read
-import Question
-import BuildQuestion
-import GamePieces
-import GameState
-import AI
-import System.Random
+import qualified State as S (State, runState)
+import qualified Data.Maybe (Maybe)
+import Data.Set (Set)
+import qualified Data.Set as Set (fromList, member, null, insert, empty, 
+                                  toList)
+import qualified Data.Map as Map (lookup)
+import Text.Read (readMaybe)
+import System.Random (randomIO)
 
+import Question (Question (SpecificCard),
+                 QHand (Filter, BlankQHand), 
+                 QInt (IntVal), getAnswer, readQuestionOptionsBuilding, 
+                 readQuestionHandOptions, readQuestionIntOptions, 
+                 questionOptionsBuilding, questionIntOptions, 
+                 questionHandOptions, questionOptionsInitial)
+import BuildQuestion (buildQuestionWithQHand,
+                      buildQuestionWithQInt,
+                      buildQuestion,
+                      findBlank)
+import GamePieces (Suit, Rank, Card (Card), Player, PlayerHand,
+                   rank, suit, pid, hand, ranks, ai)
+import GameState (Move (MBreak, MQuestion), GameStore,
+                  players, laidOutCards, currQuestion, prevMoves,
+                  initialGameStore, checkEnd, getPlayerRanksString, getWinner,
+                  move, claimRank, layoutCard, hasPlayerBreak, 
+                  filterMoveBreaks, clearPrevMoves, prettyPrintList)
+import GameTexts
+import AI (runAiTurn)
+
+-------------------------------------------------------------------------------
 class Monad m => Output m where
   write :: String -> m ()
 class Monad m => Input m where
-  input :: m String    -- only return input if it is ready
+  input :: m String
     
 instance Output IO where
   write = putStrLn
@@ -26,14 +43,13 @@ instance Input IO where
   input = getLine
 
 -------------------------------------------------------------------------------
-
--- | main function
+-- | main play function
 play :: Int -> Int -> IO ()
 play numPlayers numAi = do
   seed <- randomIO :: IO Int
   play' seed numPlayers numAi
 
--- | make moves until someone wins
+-- | play function taking in a seed for random shuffling
 play' :: (Input m, Output m) => Int -> Int -> Int -> m ()
 play' seed numPlayers numAi = 
   let initialStore = initialGameStore seed numPlayers numAi
@@ -46,13 +62,12 @@ play' seed numPlayers numAi =
 displayEnd :: (Input m, Output m) => [Int] -> GameStore -> m ()
 displayEnd sequence store = 
   let winner = getWinner store in do
-  write "\n===================="
-  write $ "🎉🎉 Player " ++ show (pid winner) ++ " won! 🎉🎉\n"
-  write "Here are how many ranks everyone collected:"
+  write $ endText (pid winner)
   write $ getPlayerRanksString store
 
+-- | start of turn
 goIntro :: (Input m, Output m) => [Int] -> GameStore -> m ()
-goIntro sequence@(playerId:_) store = if (checkEnd store) 
+goIntro sequence@(playerId:_) store = if checkEnd store
   then displayEnd sequence store
   else case Map.lookup playerId (players store) of
     Just player -> 
@@ -61,28 +76,29 @@ goIntro sequence@(playerId:_) store = if (checkEnd store)
       if ai player then goIntroAI sequence store'
       else goIntroPlayer sequence store' 
         (hasPlayerBreak playerId (prevMoves store))
-    Nothing -> return () -- Error
-goIntro _ _ = return () -- Error
+    Nothing -> write errorText
+goIntro _ _ = write errorText
 
+-- | start of AI turn
 goIntroAI :: (Input m, Output m) => [Int] -> GameStore -> m ()
 goIntroAI sequence@(playerId:_) store = 
   let store' = runAiTurn store playerId
-      (sequence', _) = S.runState (move sequence) store' in do
+      (sequence', _) = S.runState (move sequence) store' in
     goIntro sequence' store'
-goIntroAI _ _ = return () -- Error
+goIntroAI _ _ = write errorText
 
+-- | start of human player turn
 goIntroPlayer :: (Input m, Output m) => [Int] -> GameStore -> Bool -> m ()
 goIntroPlayer sequence@(playerId:_) store isNewTurn =
   case Map.lookup playerId (players store) of
     Just player -> do
       if isNewTurn then do
-        write $ ">> It's Player " ++ show playerId ++ "'s turn!! \ 
-                \Press <enter> to continue."
+        write $ newTurnText playerId
         _ <- input
         write $ summaryText ++ 
-                (prettyPrintList (filterMoveBreaks (prevMoves store)) 
-                "\nThere is nothing to summarize :o") ++ "\n"
-      else write $ "It's still Player " ++ show playerId ++ "'s turn :)\n"
+                prettyPrintList (filterMoveBreaks (prevMoves store)) 
+                emptySummaryText
+      else write $ oldTurnText playerId
       write promptText
       playerCommand <- input
       case playerCommand of
@@ -92,17 +108,16 @@ goIntroPlayer sequence@(playerId:_) store isNewTurn =
                   goIntro sequence store
         "quit" -> return ()
         "hand" -> write ("\nYour hand:" ++ 
-                        (prettyPrintList (Set.toList (hand player)) 
-                        "\nYou have no cards in your hand left :o") ++ "\n") >>
+                        prettyPrintList (Set.toList (hand player)) 
+                        emptyHandText ++ "\n") >>
                   goIntro sequence store
         "laidout" -> write ("\nCurrent laid out cards:" ++ 
-                            (prettyPrintList (laidOutCards store) 
-                            "\nThere are no laid out cards :o") ++ "\n") >>
+                            prettyPrintList (laidOutCards store) 
+                            emptyLaidoutText ++ "\n") >>
                     goIntro sequence store
         "claimed" -> write ("\nYour current claimed ranks:" ++ 
-                            (prettyPrintList (Set.toList (ranks player)) 
-                            "\nYou haven't claimed any ranks yet :o") ++ 
-                            "\n") >>
+                            prettyPrintList (Set.toList (ranks player)) 
+                            emptyClaimedText ++ "\n") >>
                     goIntro sequence store
         "claim" -> goClaim sequence store
         "ask" -> goQuestion sequence store
@@ -111,22 +126,23 @@ goIntroPlayer sequence@(playerId:_) store isNewTurn =
                   write "\nPrev store' moves [CLEARED]:" >>
                   write (show (prevMoves store) ++ "\n") >>
                   goIntro sequence store
-        "all" -> write "\nEntire game store:" >>  -- for debugging purposes only
+        "all" -> write "\nEntire game store:" >> -- for debugging purposes only
                 write (show (players store) ++ "\n") >>
                 goIntro sequence store
         _ -> write "\nNot a valid menu command. Try again!\n" >>
             goIntro sequence store
-    Nothing -> return () -- Error
-goIntroPlayer _ _ _ = return () -- Error
+    Nothing -> write errorText
+goIntroPlayer _ _ _ = write errorText
 
+-- | player action to claim rank
 goClaim :: (Input m, Output m) => [Int] -> GameStore -> m ()
 goClaim sequence@(playerId:_) store =
   case Map.lookup playerId (players store) of
     Just player -> do
-      write "\n>> Enter a rank to claim."
+      write rankText
       toClaim <- input
       case toClaim of
-        "quit" -> return ()
+        "quit" -> write errorText
         "help" -> write ("\n" ++ claimHelpText ++ "\n") >>
                   goClaim sequence store
         "nvm" -> write "\nNot claiming any ranks." >>
@@ -134,8 +150,7 @@ goClaim sequence@(playerId:_) store =
         _ -> case (readMaybe toClaim :: Maybe Rank) of
                 Just r -> case claimRank store playerId r of
                   Just store' -> do
-                    write ("\nCongrats, you successfully claimed the rank " ++ 
-                          show r ++ " :)\n")
+                    write $ claimRankSuccessText r
                     goIntro sequence store'
                   Nothing ->
                     write ("\nYou weren't able to claim the rank " ++ show r ++
@@ -143,86 +158,86 @@ goClaim sequence@(playerId:_) store =
                     goIntro sequence store
                 _ -> write "\nPlease enter a valid rank:" >>
                     goClaim sequence store
-    Nothing -> return () -- Error
-goClaim _ _ = return () -- Error
+    Nothing -> write errorText
+goClaim _ _ = write errorText
 
+-- | player action to ask another player a question
 goQuestion :: (Input m, Output m) => [Int] -> GameStore -> m ()
 goQuestion sequence@(playerId:_) store = 
   let (sequence', _) = S.runState (move sequence) store in
     case Map.lookup playerId (players store) of
       Just player -> do
-        write ("\n>> Player " ++ show playerId ++ 
-              ": Enter a player id to choose a player to ask a question to.")
+        write $ enterIdText playerId
         playerIdToQuestion <- input
         case (readMaybe playerIdToQuestion :: Maybe Int) of
           Just i -> case Map.lookup i (players store) of
             Just playerToQuestion -> do
-              write ("\n>> Player " ++ show playerId ++ ": Enter a question.")
+              write $ enterQuestionText playerId
               write questionOptionsInitial
               q <- input
               case q of
                 "1" -> askSpecificCard player playerToQuestion sequence store
                 "2" -> createQuestion player playerToQuestion sequence store
                 "quit" -> return () -- quit the game
-                "none" -> let store' = store { prevMoves = (prevMoves store) ++ 
-                                              [ (MBreak playerId) ] } in
-                          write "\nYou have skipped your turn.\n===========\n" >>
+                "none" -> let store' = store { prevMoves = prevMoves store ++ 
+                                              [ MBreak playerId ] } in
+                          write ("\nYou have skipped your turn." ++ lineBreakText) >>
                           goIntro sequence' store' -- skip turn
                 _   -> write "\nInvalid question" >> goQuestion sequence store
             Nothing -> write "\nPlease enter a valid player id" >>
                       goQuestion sequence store
           Nothing -> write "\nPlease enter an integer player id" >>
                     goQuestion sequence store
-      Nothing -> return () -- Error
-goQuestion _ _ = return () -- Error
+      Nothing -> write errorText
+goQuestion _ _ = write errorText
 
+-- | player action to ask another player if they have a specific card
 askSpecificCard :: (Input m, Output m) => 
   Player -> Player -> [Int] -> GameStore -> m ()
 askSpecificCard askingPlayer askedPlayer sequence store = 
   let (sequence', _) = S.runState (move sequence) store in do
-    write "\n>> Enter a rank."
-    rank <- input
-    write "\n>> Enter a suit: Diamond, Club, Heart, or Spade."
-    suit <- input
-    case (readMaybe suit :: Maybe Suit, readMaybe rank :: Maybe Rank) of
+    write rankText
+    rankIn <- input
+    write suitText
+    suitIn <- input
+    case (readMaybe suitIn :: Maybe Suit, readMaybe rankIn :: Maybe Rank) of
       (Just s, Just r) ->
         let c = Card r s
             q = SpecificCard c
             ans =  getAnswer q (hand askedPlayer)
-            newPrevMoves = (prevMoves store) ++ 
-              [ (MQuestion (pid askingPlayer) q (pid askedPlayer) ans) ]
+            newPrevMoves = prevMoves store ++ 
+              [ MQuestion (pid askingPlayer) q (pid askedPlayer) ans ]
             in
-          write ("\nYou asked Player " ++ show (pid askedPlayer) ++ 
-                ": " ++ "\n" ++ (show q)) >>
+          write (askText (pid askedPlayer) q) >>
           if ans 
             then let store' = store { prevMoves = newPrevMoves }
                      store'' = layoutCard store' askedPlayer c in
-                 write ("Yes, they had the " ++ show c ++ "\n===========\n") 
-                 >> goIntro sequence store''
+                 write (askSuccessText c) >>
+                 goIntro sequence store''
             else let store' = store { prevMoves = newPrevMoves ++ 
-                                      [ (MBreak (pid askingPlayer)) ] } in
-                 write ("No, they didn't have the " ++ 
-                       show c ++ "\n\n===========\n")
-                 >> goIntro sequence' store'
+                                      [ MBreak (pid askingPlayer) ] } in
+                 write (askFailureText c) >>
+                 goIntro sequence' store'
       _ -> write "\nInvalid suit or rank" >> goQuestion sequence store
 
+-- | player action to ask another player a complex question
 askComplexQuestion :: (Input m, Output m) => 
   Player -> Player -> [Int] -> GameStore -> m ()
 askComplexQuestion askingPlayer askedPlayer sequence store = 
   let (sequence', _) = S.runState (move sequence) store in do
     let q = currQuestion store
         ans = getAnswer q (hand askedPlayer)
-        newPrevMoves = (prevMoves store) ++ 
-          [ (MQuestion (pid askingPlayer) q (pid askedPlayer) ans) ]
-        store' = if ans then store { prevMoves = newPrevMoves }
-                 else store { prevMoves = newPrevMoves ++ 
-                              [ (MBreak (pid askingPlayer)) ] }
-    write ("\nYou asked Player " ++ show (pid askedPlayer) ++ ":")
-    write (show (currQuestion store))
+        newPrevMoves = prevMoves store ++ 
+          [ MQuestion (pid askingPlayer) q (pid askedPlayer) ans,
+            MBreak (pid askingPlayer) ]
+        store' = store { prevMoves = newPrevMoves }
+    write $ askText (pid askedPlayer) q
     write $ showBool ans
-    write "\n===========\n"
+    write lineBreakText
     goIntro sequence' store'
 
+-- | Creates a new question by asking the user for input 
+-- | until the question is complete.
 createQuestion :: (Input m, Output m) => 
   Player -> Player -> [Int] -> GameStore -> m ()
 createQuestion askingPlayer askedPlayer sequence store = 
@@ -235,7 +250,7 @@ createQuestion askingPlayer askedPlayer sequence store =
   where
     createQuestionMain :: (Input m, Output m) => Question -> m ()
     createQuestionMain currQ = do
-      write $ "\n>> " ++ (questionOptionsBuilding currQ)
+      write $ questionOptionsBuilding currQ
       playerInput <- input
       case readQuestionOptionsBuilding playerInput of
         Nothing -> do
@@ -243,12 +258,13 @@ createQuestion askingPlayer askedPlayer sequence store =
           createQuestionMain currQ
         Just q -> 
           case buildQuestion currQ q of 
-            Nothing -> undefined -- should be unreachable
+            Nothing -> write errorText -- should be unreachable
             Just newQ -> 
-              createQuestion askingPlayer askedPlayer sequence (store {currQuestion = newQ})
+              createQuestion askingPlayer askedPlayer sequence 
+              (store {currQuestion = newQ})
     createQuestionInt :: (Input m, Output m) => Question -> m ()
     createQuestionInt currQ = do
-      write $ "\n>> " ++ (questionIntOptions currQ)
+      write $ questionIntOptions currQ
       playerInput <- input
       case readQuestionIntOptions playerInput of
         Nothing -> do 
@@ -260,19 +276,21 @@ createQuestion askingPlayer askedPlayer sequence store =
           case readMaybe i :: Maybe Int of
             Just i' -> let q = IntVal i' in
               case buildQuestionWithQInt currQ q of 
-                Nothing -> undefined -- should be unreachable
+                Nothing -> write errorText -- should be unreachable
                 Just newQ -> 
-                  createQuestion askingPlayer askedPlayer sequence (store {currQuestion = newQ})
+                  createQuestion askingPlayer askedPlayer sequence 
+                  (store {currQuestion = newQ})
             Nothing -> do 
               write "\nNot an integer, try again!"
               createQuestionInt currQ
         Just q -> case buildQuestionWithQInt currQ q of
-                Nothing -> undefined -- should be unreachable
+                Nothing -> write errorText -- should be unreachable
                 Just newQ -> 
-                  createQuestion askingPlayer askedPlayer sequence (store {currQuestion = newQ})
+                  createQuestion askingPlayer askedPlayer sequence 
+                  (store {currQuestion = newQ})
     createQuestionHand :: (Input m, Output m) => Question -> m ()
     createQuestionHand currQ = do 
-      write $ "\n>> " ++ (questionHandOptions currQ)
+      write $ questionHandOptions currQ
       playerInput <- input
       case readQuestionHandOptions playerInput of
         Nothing -> do 
@@ -280,13 +298,12 @@ createQuestion askingPlayer askedPlayer sequence store =
           createQuestionHand currQ
         Just (Filter _ qh) -> createQuestionFilter currQ
         Just q -> case buildQuestionWithQHand currQ q of 
-          Nothing -> undefined -- should be unreachable
-          Just newQ -> createQuestion askingPlayer askedPlayer sequence (store {currQuestion = newQ})
+          Nothing -> write errorText -- should be unreachable
+          Just newQ -> createQuestion askingPlayer askedPlayer sequence 
+                       (store {currQuestion = newQ})
     createQuestionFilter :: (Input m, Output m) => Question -> m ()
     createQuestionFilter currQ = do
-      write "\n>> Would you like to filter cards out or filter card in?  \n \
-             \1: Filter out \n \
-             \2: Filter in"
+      write filterOutInText
       playerInput <- input
       case readMaybe playerInput :: Maybe Int of 
         Just 1 -> createQuestionFilterOut currQ Set.empty Set.empty 
@@ -295,55 +312,52 @@ createQuestion askingPlayer askedPlayer sequence store =
           write "\nInvalid input, try again!"
           createQuestionFilter currQ  
     createQuestionFilterOut :: (Input m, Output m) => 
-      Question -> Set.Set Suit -> Set.Set Rank -> m ()
+      Question -> Set Suit -> Set Rank -> m ()
     createQuestionFilterOut currQ filteredSuits filteredRanks = do
-      write "\nSo far, you've filtered out:"
-      write ("Suits: " ++ show filteredSuits)
-      write ("Suits: " ++ show filteredRanks)
-      write $ "\n>> What would you like to filter out? Enter any rank, suit, or" ++ 
-              " 'done' if there's nothing else to filter."
+      write $ filteredOutSoFarText filteredSuits filteredRanks
+      write filterOutText
       filterOut <- input
       case (readMaybe filterOut :: Maybe Suit) of
         Just s -> 
-          createQuestionFilterOut currQ (Set.insert s filteredSuits) filteredRanks
+          createQuestionFilterOut currQ 
+            (Set.insert s filteredSuits) filteredRanks
         Nothing -> case (readMaybe filterOut :: Maybe Rank) of
-          Just r -> 
-            createQuestionFilterOut currQ filteredSuits 
-              (Set.insert r filteredRanks)
+          Just r -> createQuestionFilterOut currQ filteredSuits 
+            (Set.insert r filteredRanks)
           Nothing -> case filterOut of
             "done" -> 
-              let filterFunction c = not (suit c `Set.member` filteredSuits) && 
+              let filterFunction c = not (suit c `Set.member` filteredSuits) &&
                                      not (rank c `Set.member` filteredRanks)
                   filterQuestion = Filter filterFunction BlankQHand in
               case buildQuestionWithQHand currQ filterQuestion of 
-                Nothing -> undefined -- should be unreachable
+                Nothing -> write errorText -- should be unreachable
                 Just newQ -> createQuestion askingPlayer askedPlayer sequence 
                              (store {currQuestion = newQ})
             _ -> write "\nInvalid input, try again!" >>
                  createQuestionFilterOut currQ filteredSuits filteredRanks
     createQuestionFilterIn :: (Input m, Output m) => 
-      Question -> Set.Set Suit -> Set.Set Rank -> m ()
+      Question -> Set Suit -> Set Rank -> m ()
     createQuestionFilterIn currQ filteredSuits filteredRanks = do
-      write "\nSo far, you've filtered in:"
-      write (show filteredSuits)
-      write (show filteredRanks)
-      write $ "\n>> What would you like to filter in? Enter any rank, suit, or" ++ 
-              " 'done' if there's nothing else to filter."
+      write $ filteredInSoFarText filteredSuits filteredRanks
+      write filterInText
       filterOut <- input
       case (readMaybe filterOut :: Maybe Suit) of
-        Just s -> 
-          createQuestionFilterIn currQ (Set.insert s filteredSuits) filteredRanks
+        Just s -> createQuestionFilterIn currQ 
+          (Set.insert s filteredSuits) filteredRanks
         Nothing -> case (readMaybe filterOut :: Maybe Rank) of
           Just r -> 
             createQuestionFilterIn currQ filteredSuits 
               (Set.insert r filteredRanks)
           Nothing -> case filterOut of
             "done" -> 
-              let filterFunction c = (suit c `Set.member` filteredSuits || (Set.null filteredSuits)) && 
-                                     (rank c `Set.member` filteredRanks || (Set.null filteredRanks))
+              let filterFunction c = 
+                    (suit c `Set.member` filteredSuits || 
+                      Set.null filteredSuits) &&
+                    (rank c `Set.member` filteredRanks || 
+                      Set.null filteredRanks)
                   filterQuestion = Filter filterFunction BlankQHand in
               case buildQuestionWithQHand currQ filterQuestion of 
-                Nothing -> undefined -- should be unreachable
+                Nothing -> write errorText -- should be unreachable
                 Just newQ -> createQuestion askingPlayer askedPlayer sequence 
                              (store {currQuestion = newQ})
             _ -> write "\nInvalid input, try again!" >>

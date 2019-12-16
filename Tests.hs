@@ -1,19 +1,25 @@
 {-# OPTIONS -Wincomplete-patterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Tests where
+
+import Data.Set (Set)
+import qualified Data.Set as Set (empty, fromList, size, null, toList, member)
+import Control.Monad (liftM,liftM2,liftM3)
+import Data.Map (Map, (!))
+import qualified Data.Map as Map (empty, insert, keys)
+import Test.HUnit
+import Test.QuickCheck 
+import qualified State as S (runState)
+
+import Question
 import GamePieces
 import GameState
-import Question
-import Data.Set as Set
-import Control.Monad (liftM,liftM2,liftM3)
-import Data.Map as Map
-import Test.HUnit
-import Test.QuickCheck
-import qualified State as S
+import IOTest (fakeIOTest)
 
 main :: IO ()
 main = do
   _ <- runTestTT unitTests
+  _ <- runTestTT fakeIOTest
   quickCheck propHandsContainSpecificCard
   quickCheck propNonEmptyHand
   quickCheck propUnionQuestions
@@ -169,7 +175,8 @@ propCardsEvenDistributed s n a =
       maxSize = 
         Prelude.foldr (\p acc -> max (Set.size (hand p)) acc) 0 (players gs)
       minSize = 
-        Prelude.foldr (\p acc -> min (Set.size (hand p)) acc) 52 (players gs) in
+        Prelude.foldr 
+        (\p acc -> min (Set.size (hand p)) acc) 52 (players gs) in
   (maxSize == minSize || maxSize - 1 == minSize) && 
   Prelude.foldr 
     (\p acc -> Set.size (hand p) > 0 && Set.size (hand p) <= 52 && acc) 
@@ -199,8 +206,8 @@ testPlayerTurn :: Test
 testPlayerTurn = 
   let gs = initialGameStore 0 4 0
       firstPlayerId = pid (players gs ! 0)
-      (ps2, gs2) = S.runState (move (Map.keys (players gs))) gs
-      secondPlayerId = head ps2 in
+      (ps', gs') = S.runState (move (Map.keys (players gs))) gs
+      secondPlayerId = head ps' in
   TestList [firstPlayerId ~?= 0, secondPlayerId ~?= 1]
 
 -- unit test for the right person's turn after going around all players
@@ -261,7 +268,8 @@ testClaimRankLayOut =
       Prelude.null (laidOutCards store) ~?= True, 
       laidOutCards store2 ~?= [card], 
       Prelude.null (laidOutCards store3) ~?= True, 
-      Set.size (hand (players store ! 0)) - 4 ~?= Set.size (hand (players store3 ! 0)), 
+      Set.size (hand (players store ! 0)) - 4 ~?= 
+        Set.size (hand (players store3 ! 0)), 
       ranks (players store3 ! 0) ~?= Set.fromList [Ace] ]
     Nothing -> True ~?= False --error case
   
@@ -289,7 +297,8 @@ winState =
   where
     createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
-      Map.insert id (P id Set.empty r False Map.empty) (createPlayersWin ids ranks)
+      Map.insert id (P id Set.empty r False Map.empty) 
+      (createPlayersWin ids ranks)
     createPlayersWin _ _ = Map.empty
 
 tieState :: GameStore
@@ -302,7 +311,8 @@ tieState =
   where
     createPlayersWin :: [Int] -> [Set Rank] -> Map Int Player
     createPlayersWin (id : ids) (r : ranks) = 
-      Map.insert id (P id Set.empty r False Map.empty) (createPlayersWin ids ranks)
+      Map.insert id (P id Set.empty r False Map.empty) (
+        createPlayersWin ids ranks)
     createPlayersWin _ _ = Map.empty
 
 -- p1 has all diamonds, p2 has all clubs, p3 has all hearts, p4 has all spades
@@ -316,7 +326,8 @@ unshuffledGame =
   where
     createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
-      Map.insert id (P id h Set.empty False Map.empty) (createPlayersUnshuffled ids hands)
+      Map.insert id (P id h Set.empty False Map.empty) 
+      (createPlayersUnshuffled ids hands)
     createPlayersUnshuffled _ _ = Map.empty
 
 
@@ -346,6 +357,7 @@ fakeGameAllCards =
   where
     createPlayersUnshuffled :: [Int] -> [PlayerHand] -> Map Int Player
     createPlayersUnshuffled (id : ids) (h : hands) = 
-      Map.insert id (P id h Set.empty False Map.empty) (createPlayersUnshuffled ids hands)
+      Map.insert id (P id h Set.empty False Map.empty) 
+      (createPlayersUnshuffled ids hands)
     createPlayersUnshuffled _ _ = Map.empty
 

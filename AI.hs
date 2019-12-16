@@ -1,18 +1,23 @@
 {-# OPTIONS -Wincomplete-patterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 module AI where
-import GamePieces
-import GameState
-import Question
-import Data.Set as Set
-import Data.Map as Map
+  
+import qualified Data.Set as Set (delete, lookupMin, null, lookupMin)
+import qualified Data.Map as Map (filterWithKey, insert, lookup, foldrWithKey, update)
 
+import GamePieces (Rank (Ace), Card, CardGuess, pid, hand, aiGuess)
+import GameState (Move (MQuestion), GameStore, players, laidOutCards, 
+                prevMoves, claimRank, layoutCard)
+import Question (Question (SpecificCard), getAnswer)
+
+-------------------------------------------------------------------------------
 -- | removes a player id from possible card guesses. if no players remain to be
--- | guessed, then card is removed from the map of possible guesses.
+-- guessed, then card is removed from the map of possible guesses.
 updateCardGuess :: CardGuess -> Card -> Int -> CardGuess
 updateCardGuess cg card pid =
-  let f x = if Set.null x' then Nothing else Just x' where x' = Set.delete pid x in
-    Map.update f card cg
+  let f x = if Set.null x' then Nothing else Just x' 
+            where x' = Set.delete pid x in
+  Map.update f card cg
 
 -- | attempts to claim all possible ranks
 claimAllPossibleRanks :: GameStore -> Int -> GameStore
@@ -31,17 +36,18 @@ getNextCard = Map.foldrWithKey
 -- | removes laid out cards from guess
 filterKnownCards :: [Card] -> CardGuess -> CardGuess
 filterKnownCards laidOutCards =
-  Map.filterWithKey (\c _ -> not (elem c laidOutCards))
+  Map.filterWithKey (\c _ -> c `notElem` laidOutCards)
 
 -- | claims all possible ranks, asks specific card question,
--- | updates store
+-- then updates the game store
 runAiTurn :: GameStore -> Int -> GameStore
 runAiTurn store playerId =
   let store' = claimAllPossibleRanks store playerId
       allPlayers = players store' in
     case Map.lookup playerId (players store') of
       Just askingPlayer -> 
-        let guess = filterKnownCards (laidOutCards store') (aiGuess askingPlayer) in
+        let guess = filterKnownCards (laidOutCards store') 
+                    (aiGuess askingPlayer) in
           case getNextCard guess of
             Just (card, askedPlayerId) ->
               case Map.lookup askedPlayerId allPlayers of
@@ -53,8 +59,8 @@ runAiTurn store playerId =
                       updatedPlayerMap = Map.insert playerId
                                           updatedAskingPlayer allPlayers
                       oldPrevMoves = prevMoves store'
-                      updatedPrevMoves = oldPrevMoves ++ [ (MQuestion 
-                        (pid askingPlayer) question (pid askedPlayer) answer) ]
+                      updatedPrevMoves = oldPrevMoves ++ [ MQuestion 
+                        (pid askingPlayer) question (pid askedPlayer) answer ]
                       store'' = store' { players = updatedPlayerMap,
                                         prevMoves = updatedPrevMoves } in
                   if answer then 

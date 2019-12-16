@@ -1,10 +1,13 @@
 {-# OPTIONS -Wincomplete-patterns #-}
 module BuildQuestion where
+
 import Question
+import Data.Maybe as Maybe ()
 
-import qualified Data.Maybe as Maybe
-
--------------------------------------------------------------------------
+----------------------------------------------------------------------------
+-- | Given the current question and a new question piece of type Question,
+-- | combine them into one question. 
+-- | Returns Nothing if there was no blank to be filled. 
 buildQuestion :: Question -> Question -> Maybe Question
 buildQuestion Blank q = Just q
 buildQuestion (Union q1 q2) q = case buildQuestion q1 q of
@@ -22,6 +25,9 @@ buildQuestion (Not q1) q2 = case buildQuestion q1 q2 of
   Nothing -> Nothing
 buildQuestion q _ = Nothing
 
+-- | Given the current question and a new question piece of type QInt,
+-- | combine them into one question. 
+-- | Returns Nothing if there was no blank to be filled. 
 buildQuestionWithQInt :: Question -> QInt -> Maybe Question
 buildQuestionWithQInt (Union q1 q2) qi = 
   case buildQuestionWithQInt q1 qi of
@@ -71,6 +77,9 @@ buildQuestionWithQInt (Le qi1 qi2) qi =
       Nothing -> Nothing
 buildQuestionWithQInt _ _ = Nothing
 
+-- | Given the current QInt and a new question piece of type QInt,
+-- | combine them into one QInt. 
+-- | Returns Nothing if there was no blank to be filled. 
 buildQuestionWithQInt' :: QInt -> QInt -> Maybe QInt
 buildQuestionWithQInt' BlankQInt qi = Just qi
 buildQuestionWithQInt' (Sum qi1 qi2) qi = case buildQuestionWithQInt' qi1 qi of
@@ -102,6 +111,9 @@ buildQuestionWithQInt' (Quotient qi1 qi2) qi =
       Nothing -> Nothing
 buildQuestionWithQInt' _ _ = Nothing
 
+-- | Given the current question and a new question piece of type QHand,
+-- | combine them into one question. 
+-- | Returns Nothing if there was no blank to be filled. 
 buildQuestionWithQHand :: Question -> QHand -> Maybe Question
 buildQuestionWithQHand (NonEmpty qh1) qh = 
   case buildQuestionWithQHand'' qh1 qh of
@@ -150,6 +162,9 @@ buildQuestionWithQHand (Le qi1 qi2) qh = case buildQuestionWithQHand' qi1 qh of
     Nothing -> Nothing
 buildQuestionWithQHand _ _ = Nothing
 
+-- | Given the current QInt and a new question piece of type QHand,
+-- | combine them into one QInt. 
+-- | Returns Nothing if there was no blank to be filled. 
 buildQuestionWithQHand' :: QInt -> QHand -> Maybe QInt
 buildQuestionWithQHand' (Cardinality qh1) qh = 
   case buildQuestionWithQHand'' qh1 qh of
@@ -195,6 +210,9 @@ buildQuestionWithQHand' (Quotient qi1 qi2) qh =
         Nothing -> Nothing
 buildQuestionWithQHand' _ _ = Nothing
 
+-- | Given the current QHand and a new question piece of type QHand,
+-- | combine them into one QHand. 
+-- | Returns Nothing if there was no blank to be filled. 
 buildQuestionWithQHand'' :: QHand -> QHand -> Maybe QHand
 buildQuestionWithQHand'' BlankQHand qh = Just qh
 buildQuestionWithQHand'' (Filter f qh1) qh = 
@@ -216,8 +234,7 @@ buildQuestionWithQHand'' (IntersectionHand qh1 qh2) qh =
 buildQuestionWithQHand'' _ _ = Nothing
 
 
--- returning 0 for no blank, 1 for Blank, 2 for BlankQInt, 3 for BlankQHand
--- should think about changing this
+-- | Returning 0 for no blank, 1 for Blank, 2 for BlankQInt, 3 for BlankQHand
 findBlank :: Question -> Int
 findBlank Blank = 1
 findBlank (NonEmpty qh) = findBlankHand qh
@@ -252,6 +269,7 @@ findBlank (Le q1 q2) =
     x -> x
 findBlank (SpecificCard _) = 0
 
+-- | Returning 0 for no blank, 1 for Blank, 2 for BlankQInt, 3 for BlankQHand
 findBlankInt :: QInt -> Int
 findBlankInt BlankQInt = 2
 findBlankInt (Cardinality qh) = findBlankHand qh
@@ -279,6 +297,7 @@ findBlankInt (Quotient q1 q2) =
     x -> x
 findBlankInt (IntVal _) = 0
 
+-- | Returning 0 for no blank, 1 for Blank, 2 for BlankQInt, 3 for BlankQHand
 findBlankHand :: QHand -> Int
 findBlankHand BlankQHand = 3
 findBlankHand (Filter _ qh) = findBlankHand qh
