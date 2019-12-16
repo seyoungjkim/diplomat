@@ -7,6 +7,9 @@ import Data.Set as Set (Set)
 errorText :: String
 errorText = "System error!"
 
+invalidInputText :: String
+invalidInputText = "\nInvalid input, try again!"
+
 lineBreakText :: String
 lineBreakText = "\n===========\n"
 
@@ -87,8 +90,8 @@ emptySummaryText = "\nThere is nothing to summarize :o\n"
 emptyHandText :: String
 emptyHandText = "\nYou have no cards in your hand left :o"
 
-emptyLaidoutText :: String
-emptyLaidoutText = "\nThere are no laid out cards :o"
+emptyLaidOutText :: String
+emptyLaidOutText = "\nThere are no laid out cards :o"
 
 emptyClaimedText :: String
 emptyClaimedText = "\nYou haven't claimed any ranks yet :o"

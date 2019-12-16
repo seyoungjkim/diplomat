@@ -43,7 +43,7 @@ instance Input IO where
   input = getLine
 
 -------------------------------------------------------------------------------
--- | main play function
+-- | main play function, which generates a random seed for shuffling
 play :: Int -> Int -> IO ()
 play numPlayers numAi = do
   seed <- randomIO :: IO Int
@@ -73,19 +73,19 @@ goIntro sequence@(playerId:_) store = if checkEnd store
     Just player -> 
       let clearedPrevMoves = clearPrevMoves playerId (prevMoves store)
           store' = store { prevMoves = clearedPrevMoves } in
-      if ai player then goIntroAI sequence store'
+      if ai player then goIntroAi sequence store'
       else goIntroPlayer sequence store' 
         (hasPlayerBreak playerId (prevMoves store))
     Nothing -> write errorText
 goIntro _ _ = write errorText
 
 -- | start of AI turn
-goIntroAI :: (Input m, Output m) => [Int] -> GameStore -> m ()
-goIntroAI sequence@(playerId:_) store = 
+goIntroAi :: (Input m, Output m) => [Int] -> GameStore -> m ()
+goIntroAi sequence@(playerId:_) store = 
   let store' = runAiTurn store playerId
       (sequence', _) = S.runState (move sequence) store' in
     goIntro sequence' store'
-goIntroAI _ _ = write errorText
+goIntroAi _ _ = write errorText
 
 -- | start of human player turn
 goIntroPlayer :: (Input m, Output m) => [Int] -> GameStore -> Bool -> m ()
@@ -111,9 +111,9 @@ goIntroPlayer sequence@(playerId:_) store isNewTurn =
                         prettyPrintList (Set.toList (hand player)) 
                         emptyHandText ++ "\n") >>
                   goIntro sequence store
-        "laidout" -> write ("\nCurrent laid out cards:" ++ 
+        "laidout" -> write ("\nCurrent laid-out cards:" ++ 
                             prettyPrintList (laidOutCards store) 
-                            emptyLaidoutText ++ "\n") >>
+                            emptyLaidOutText ++ "\n") >>
                     goIntro sequence store
         "claimed" -> write ("\nYour current claimed ranks:" ++ 
                             prettyPrintList (Set.toList (ranks player)) 
@@ -181,7 +181,8 @@ goQuestion sequence@(playerId:_) store =
                 "quit" -> return () -- quit the game
                 "none" -> let store' = store { prevMoves = prevMoves store ++ 
                                               [ MBreak playerId ] } in
-                          write ("\nYou have skipped your turn." ++ lineBreakText) >>
+                          write ("\nYou have skipped your turn." ++ 
+                                 lineBreakText) >>
                           goIntro sequence' store' -- skip turn
                 _   -> write "\nInvalid question" >> goQuestion sequence store
             Nothing -> write "\nPlease enter a valid player id" >>
@@ -254,7 +255,7 @@ createQuestion askingPlayer askedPlayer sequence store =
       playerInput <- input
       case readQuestionOptionsBuilding playerInput of
         Nothing -> do
-          write "\nInvalid input, try again!"
+          write invalidInputText
           createQuestionMain currQ
         Just q -> 
           case buildQuestion currQ q of 
@@ -268,7 +269,7 @@ createQuestion askingPlayer askedPlayer sequence store =
       playerInput <- input
       case readQuestionIntOptions playerInput of
         Nothing -> do 
-          write "\nInvalid input, try again!"
+          write invalidInputText
           createQuestionInt currQ
         Just (IntVal _) -> do 
           write "\n>> Which integer?"
@@ -294,7 +295,7 @@ createQuestion askingPlayer askedPlayer sequence store =
       playerInput <- input
       case readQuestionHandOptions playerInput of
         Nothing -> do 
-          write "\nInvalid input, try again!"
+          write invalidInputText
           createQuestionHand currQ
         Just (Filter _ qh) -> createQuestionFilter currQ
         Just q -> case buildQuestionWithQHand currQ q of 
@@ -309,7 +310,7 @@ createQuestion askingPlayer askedPlayer sequence store =
         Just 1 -> createQuestionFilterOut currQ Set.empty Set.empty 
         Just 2 -> createQuestionFilterIn currQ Set.empty Set.empty
         _ -> do
-          write "\nInvalid input, try again!"
+          write invalidInputText
           createQuestionFilter currQ  
     createQuestionFilterOut :: (Input m, Output m) => 
       Question -> Set Suit -> Set Rank -> m ()
@@ -333,7 +334,7 @@ createQuestion askingPlayer askedPlayer sequence store =
                 Nothing -> write errorText -- should be unreachable
                 Just newQ -> createQuestion askingPlayer askedPlayer sequence 
                              (store {currQuestion = newQ})
-            _ -> write "\nInvalid input, try again!" >>
+            _ -> write invalidInputText >>
                  createQuestionFilterOut currQ filteredSuits filteredRanks
     createQuestionFilterIn :: (Input m, Output m) => 
       Question -> Set Suit -> Set Rank -> m ()
@@ -360,5 +361,5 @@ createQuestion askingPlayer askedPlayer sequence store =
                 Nothing -> write errorText -- should be unreachable
                 Just newQ -> createQuestion askingPlayer askedPlayer sequence 
                              (store {currQuestion = newQ})
-            _ -> write "\nInvalid input, try again!" >>
+            _ -> write invalidInputText >>
                  createQuestionFilterIn currQ filteredSuits filteredRanks

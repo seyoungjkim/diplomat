@@ -9,6 +9,7 @@ import Question (Question (Blank, NonEmpty, SpecificCard),
                  QHand (BlankQHand, Hand, Filter),
                  questionOptionsInitial, questionHandOptions, 
                  questionOptionsBuilding)
+import Main (main)
 
 import Test.HUnit
 import qualified State as S (State, execState, put, get)
@@ -46,6 +47,7 @@ runFakeIO comp inputs =
   where
     initState = FS { fsWrite = DL.empty, fsInput = inputs }
 
+-- Runs regression test with given seed, one human player, and one computer player
 fakeIOTest :: Test
 fakeIOTest =
   runFakeIO (play' 0 1 1)
