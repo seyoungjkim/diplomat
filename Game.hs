@@ -10,7 +10,7 @@ import qualified Data.Set as Set (fromList, member, null, insert, empty,
 import qualified Data.Map as Map (lookup)
 import Text.Read (readMaybe)
 
-import Question (Question (SpecificCard),
+import Question (Question (Blank, SpecificCard),
                  QHand (Filter, BlankQHand), 
                  QInt (IntVal), getAnswer, readQuestionOptionsBuilding, 
                  readQuestionHandOptions, readQuestionIntOptions, 
@@ -224,7 +224,7 @@ askComplexQuestion askingPlayer askedPlayer sequence store =
         newPrevMoves = prevMoves store ++ 
           [ MQuestion (pid askingPlayer) q (pid askedPlayer) ans,
             MBreak (pid askingPlayer) ]
-        store' = store { prevMoves = newPrevMoves }
+        store' = store { currQuestion = Blank, prevMoves = newPrevMoves }
     write $ askText (pid askedPlayer) q
     write $ showBool ans
     write lineBreakText
