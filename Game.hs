@@ -9,7 +9,6 @@ import qualified Data.Set as Set (fromList, member, null, insert, empty,
                                   toList)
 import qualified Data.Map as Map (lookup)
 import Text.Read (readMaybe)
-import System.Random (randomIO)
 
 import Question (Question (SpecificCard),
                  QHand (Filter, BlankQHand), 
@@ -43,15 +42,9 @@ instance Input IO where
   input = getLine
 
 -------------------------------------------------------------------------------
--- | main play function, which generates a random seed for shuffling
-play :: Int -> Int -> IO ()
-play numPlayers numAi = do
-  seed <- randomIO :: IO Int
-  play' seed numPlayers numAi
-
 -- | play function taking in a seed for random shuffling
-play' :: (Input m, Output m) => Int -> Int -> Int -> m ()
-play' seed numPlayers numAi = 
+play :: (Input m, Output m) => Int -> Int -> Int -> m ()
+play seed numPlayers numAi = 
   let initialStore = initialGameStore seed numPlayers numAi
       sequence = [0..numPlayers + numAi - 1] in do
   write introText

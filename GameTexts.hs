@@ -134,12 +134,12 @@ filteredOutSoFarText filteredSuits filteredRanks =
   ++ show filteredSuits ++ "\n" ++ show filteredRanks
 
 claimRankSuccessText :: Rank -> String
-claimRankSuccessText r = "\nCongrats, you successfully claimed the rank " ++ 
-show r ++ " :)\n"
+claimRankSuccessText r = "\nCongrats, you successfully claimed the rank "
+  ++ show r ++ " :)\n"
 
 enterIdText :: Int -> String
 enterIdText i = "\n>> Player " ++ show i ++ 
-": Enter a player id to choose a player to ask a question to."
+  ": Enter a player id to choose a player to ask a question to."
 
 enterQuestionText :: Int -> String
 enterQuestionText i = "\n>> Player " ++ show i ++ ": Enter a question."

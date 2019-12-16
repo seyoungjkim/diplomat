@@ -3,7 +3,7 @@
 module IOTest where
 
 import GameTexts
-import Game (Input, Output, input, write, play')
+import Game (Input, Output, input, write, play)
 import GamePieces (Card (Card), Suit (Spade, Club), Rank (Queen, King), suit)
 import Question (Question (Blank, NonEmpty, SpecificCard),
                  QHand (BlankQHand, Hand, Filter),
@@ -51,7 +51,7 @@ runFakeIO comp inputs =
 -- one human player, and one computer player
 fakeIOTest :: Test
 fakeIOTest =
-  runFakeIO (play' 0 1 1)
+  runFakeIO (play 0 1 1)
     [ -- Player 0 asks 2 for Queen of Spades, answer is yes
       "","ask","1","1","Queen","Spade",
       -- Player 0 claims Queen
