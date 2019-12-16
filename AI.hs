@@ -3,7 +3,8 @@
 module AI where
   
 import qualified Data.Set as Set (delete, lookupMin, null, lookupMin)
-import qualified Data.Map as Map (filterWithKey, insert, lookup, foldrWithKey, update)
+import qualified Data.Map as Map (filterWithKey, insert, lookup, 
+                                  foldrWithKey, update)
 
 import GamePieces (Rank (Ace), Card, CardGuess, pid, hand, aiGuess)
 import GameState (Move (MQuestion), GameStore, players, laidOutCards, 

@@ -16,6 +16,7 @@ import GamePieces
 import GameState
 import IOTest (fakeIOTest)
 
+-------------------------------------------------------------------------------
 main :: IO ()
 main = do
   _ <- runTestTT unitTests
@@ -40,7 +41,7 @@ main = do
   quickCheck propNoFaceUpOnStart
   return ()
 
--------------------- Question Tests --------------------
+------------------------------- Question Tests --------------------------------
 
 -- for all cards c in a hand h, getAnswer (SpecificCard c) h is true iff
 -- the hand contains c
@@ -91,20 +92,25 @@ propLtQuestionSame qi h = not $ getAnswer (Lt qi qi) h
 propLeQuestionSame :: QInt -> PlayerHand -> Bool
 propLeQuestionSame qi = getAnswer (Le qi qi)
 
+-- DeMorgans Law property tests: not (A or B) = (not A) and (not B)
 propDeMorgansLaw1 :: Question -> Question -> PlayerHand -> Bool
 propDeMorgansLaw1 q1 q2 h = getAnswer (Not (Union q1 q2)) h == 
   getAnswer (Intersection (Not q1) (Not q2)) h
 
+-- DeMorgans Law property tests: not (A and B) = (not A) or (not B)
 propDeMorgansLaw2 :: Question -> Question -> PlayerHand -> Bool
 propDeMorgansLaw2 q1 q2 h = getAnswer (Not (Intersection q1 q2)) h == 
   getAnswer (Union (Not q1) (Not q2)) h
 
+-- IntVal retruns correct int
 propIntVal :: Int -> PlayerHand -> Bool
 propIntVal i h = i == getAnswerInt (IntVal i) h
 
+-- cardinality of any hand is equal to its size
 propCardinalitySimple :: PlayerHand -> Bool
 propCardinalitySimple h = getAnswerInt (Cardinality Hand) h == length h
 
+-------------------------------------------------------------------------------
 instance Arbitrary Card where
   arbitrary = elements deck
   shrink c = []
@@ -156,7 +162,7 @@ instance Arbitrary QHand where
 instance CoArbitrary Card where
   coarbitrary c = variant $ fromEnum (suit c) * 13 + fromEnum (rank c)
 
--------------------- GameState Tests --------------------
+------------------------------- GameState Tests -------------------------------
 -- all cards distributed when game is initialized
 propAllCardsDistributed :: Int -> Int -> Int -> Property
 propAllCardsDistributed s n a = n >= 0 && a >= 0 && (n + a > 0) ==> 
@@ -284,8 +290,8 @@ testLayOut =
   laidOutCards gs2 ~?= [card],
   Set.size (hand (players gs ! 0)) - 1 ~?= Set.size (hand (players gs2 ! 0))]
 
-
 -------------- Helper functions to make writing test cases easier -------------
+-- creates GameStore where 1 out of 4 players has won
 winState :: GameStore
 winState = 
   let n' = 4
@@ -301,6 +307,7 @@ winState =
       (createPlayersWin ids ranks)
     createPlayersWin _ _ = Map.empty
 
+-- creates GameStore where 2 out of 4 players have tied
 tieState :: GameStore
 tieState =
   let n' = 4
@@ -330,8 +337,7 @@ unshuffledGame =
       (createPlayersUnshuffled ids hands)
     createPlayersUnshuffled _ _ = Map.empty
 
-
--- | shuffle and deal deck to given number of players
+-- shuffle and deal deck to given number of players
 dealDeckUnshuffled :: Int -> [Card] -> [PlayerHand]
 dealDeckUnshuffled n cs = 
                 let d = 52 `div` n
@@ -344,7 +350,6 @@ dealDeckUnshuffled n cs =
     deal _ [] = []
     deal n l = let (hd, tl) = Prelude.splitAt n l in
       Set.fromList hd : deal n tl
-
 
 -- p1 has all cards
 fakeGameAllCards :: GameStore

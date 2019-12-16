@@ -4,29 +4,8 @@ import GamePieces (Rank, Suit, Card)
 import Question (Question)
 import Data.Set as Set (Set)
 
-errorText :: String
-errorText = "System error!"
-
-invalidInputText :: String
-invalidInputText = "\nInvalid input, try again!"
-
-lineBreakText :: String
-lineBreakText = "\n===========\n"
-
-rankText :: String
-rankText = "\n>> Enter a rank."
-
-suitText :: String
-suitText = "\n>> Enter a suit: Diamond, Club, Heart, or Spade."
-
-askText :: Int -> Question -> String
-askText pid q = "\nYou asked Player " ++ show pid ++ ": " ++ "\n" ++ show q
-
-askSuccessText :: Card -> String
-askSuccessText c = "Yes, they had the " ++ show c ++ lineBreakText
-
-askFailureText :: Card -> String
-askFailureText c = "No, they didn't have the " ++ show c ++ "\n" ++ lineBreakText
+-------------------------------------------------------------------------------
+-- Game Strings --
 
 instructions :: String
 instructions = "=== INSTRUCTIONS ===\n\
@@ -77,12 +56,11 @@ claimHelpText = "Here are commands you can use:\n \
                 \nvm: to stop claiming a rank. \
                 \quit: to quit the game.\n"
 
-newTurnText :: Int -> String
-newTurnText i = ">> It's Player " ++ show i ++ 
-  "'s turn!! Press <enter> to continue."
+rankText :: String
+rankText = "\n>> Enter a rank."
 
-oldTurnText :: Int -> String
-oldTurnText i = "It's still Player " ++ show i ++ "'s turn :)\n"
+suitText :: String
+suitText = "\n>> Enter a suit: Diamond, Club, Heart, or Spade."
 
 emptySummaryText :: String
 emptySummaryText = "\nThere is nothing to summarize :o\n"
@@ -95,22 +73,6 @@ emptyLaidOutText = "\nThere are no laid out cards :o"
 
 emptyClaimedText :: String
 emptyClaimedText = "\nYou haven't claimed any ranks yet :o"
-
-claimRankSuccessText :: Rank -> String
-claimRankSuccessText r = "\nCongrats, you successfully claimed the rank " ++ 
-  show r ++ " :)\n"
-
-enterIdText :: Int -> String
-enterIdText i = "\n>> Player " ++ show i ++ 
-  ": Enter a player id to choose a player to ask a question to."
-
-enterQuestionText :: Int -> String
-enterQuestionText i = "\n>> Player " ++ show i ++ ": Enter a question."
-
--- | Helper function for representing an answer response
-showBool :: Bool -> String
-showBool True = "Yes! :)"
-showBool False = "No :("
 
 filterOutInText :: String
 filterOutInText = 
@@ -128,6 +90,39 @@ filterInText =
   "\n>> What would you like to filter in? Enter any rank, suit, or" ++ 
   " 'done' if there's nothing else to filter."
 
+errorText :: String
+errorText = "System error!"
+
+invalidInputText :: String
+invalidInputText = "\nInvalid input, try again!"
+
+lineBreakText :: String
+lineBreakText = "\n===========\n"
+
+-------------------------------------------------------------------------------
+-- Helper functions that return a Game String --
+
+-- | Helper function for representing an answer response
+showBool :: Bool -> String
+showBool True = "Yes! :)"
+showBool False = "No :("
+
+askText :: Int -> Question -> String
+askText pid q = "\nYou asked Player " ++ show pid ++ ": " ++ "\n" ++ show q
+
+askSuccessText :: Card -> String
+askSuccessText c = "Yes, they had the " ++ show c ++ lineBreakText
+
+askFailureText :: Card -> String
+askFailureText c = "No, they didn't have the " ++ show c ++ "\n" ++ lineBreakText
+
+newTurnText :: Int -> String
+newTurnText i = ">> It's Player " ++ show i ++ 
+  "'s turn!! Press <enter> to continue."
+
+oldTurnText :: Int -> String
+oldTurnText i = "It's still Player " ++ show i ++ "'s turn :)\n"
+
 filteredInSoFarText :: Set Suit -> Set Rank -> String
 filteredInSoFarText filteredSuits filteredRanks = 
   "\nSo far, you've filtered in:\n"
@@ -137,6 +132,17 @@ filteredOutSoFarText :: Set Suit -> Set Rank -> String
 filteredOutSoFarText filteredSuits filteredRanks = 
   "\nSo far, you've filtered out:\n"
   ++ show filteredSuits ++ "\n" ++ show filteredRanks
+
+claimRankSuccessText :: Rank -> String
+claimRankSuccessText r = "\nCongrats, you successfully claimed the rank " ++ 
+show r ++ " :)\n"
+
+enterIdText :: Int -> String
+enterIdText i = "\n>> Player " ++ show i ++ 
+": Enter a player id to choose a player to ask a question to."
+
+enterQuestionText :: Int -> String
+enterQuestionText i = "\n>> Player " ++ show i ++ ": Enter a question."
 
 endText :: Int -> String
 endText i = lineBreakText ++ "🎉🎉 Player " ++ show i ++ " won! 🎉🎉\n\n" ++

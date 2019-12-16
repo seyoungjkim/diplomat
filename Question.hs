@@ -10,10 +10,10 @@ import qualified State as S
 import qualified Data.Set as Set (member, empty, union, intersection, filter)
 import Data.Maybe as Maybe ()
 
-
--- Component of a question which results in a bool
+-------------------------------------------------------------------------------
+-- Component of a question which results in a bool.
 -- As the overall question must result in a bool, 
---    this is the parent question type.
+-- this is the parent question type.
 data Question = 
   Blank
   | SpecificCard Card              -- -> bool
@@ -44,7 +44,7 @@ instance Show Question where
   show (Le qi1 qi2) = 
     "Is (" ++ show qi1 ++ ") less than or equal to (" ++ show qi2 ++ ")?"
 
--- Component of a question which results in an int 
+-- Component of a question which results in an int.
 data QInt = 
   BlankQInt
   | IntVal Int                     -- -> int
@@ -70,7 +70,7 @@ instance Show QInt where
   show (Quotient qi1 qi2) = 
     "(" ++ show qi1 ++ ") divided by (" ++ show qi2 ++ ")" 
 
--- Component of a question which results in a hand 
+-- Component of a question which results in a hand.
 data QHand = 
   BlankQHand
   | Hand                           -- -> hand
@@ -81,7 +81,8 @@ data QHand =
 instance Show QHand where
   show BlankQHand = "_"
   show Hand = "Hand"
-  show (UnionHand qh1 qh2) = "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
+  show (UnionHand qh1 qh2) = 
+    "UnionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (IntersectionHand qh1 qh2) = 
     "IntersectionHand(" ++ show qh1 ++ ", " ++ show qh2 ++ ")"
   show (Filter f qh) = 
@@ -90,8 +91,8 @@ instance Show QHand where
           findFalseCard f = 
             foldr (\x acc -> if not (f x) then show x else acc) "N/A" deck
 
--------------------------------------------------------------------------
--- | returns bool value of a top-level question
+-------------------------------------------------------------------------------
+-- | Returns bool value of a top-level question
 getAnswer :: Question -> PlayerHand -> Bool
 getAnswer (SpecificCard c) h      = Set.member c h
 getAnswer (NonEmpty qh) h         = not $ null (getAnswerHand qh h)
@@ -105,7 +106,7 @@ getAnswer (Ge qi1 qi2) h          = getAnswerInt qi1 h >= getAnswerInt qi2 h
 getAnswer (Le qi1 qi2) h          = getAnswerInt qi1 h <= getAnswerInt qi2 h
 getAnswer Blank _                 = False
   
--- | returns int value of a question
+-- | Returns int value of a question
 getAnswerInt :: QInt -> PlayerHand -> Int
 getAnswerInt (IntVal i) h         = i
 getAnswerInt (Cardinality qh) h   = length (getAnswerHand qh h)
@@ -122,7 +123,7 @@ getAnswerInt (Quotient qi1 qi2) h = case getAnswerInt qi2 h of
   x -> getAnswerInt qi1 h `div` x
 getAnswerInt BlankQInt _          = 0
   
--- | returns hand value for a question
+-- | Returns hand value for a question
 getAnswerHand :: QHand -> PlayerHand -> PlayerHand
 getAnswerHand Hand h = h
 getAnswerHand (UnionHand qh1 qh2) h = 

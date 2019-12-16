@@ -17,7 +17,6 @@ import qualified Data.DList as DL (DList, empty, singleton, append, toList)
 import Data.Set as Set (empty, singleton)
 
 -------------------- Fake IO --------------------
-
 type FakeIO = S.State FakeState
 
 data FakeState = FS
@@ -41,13 +40,15 @@ instance Input FakeIO where
     S.put $ st { fsInput = rest }
     return v
 
+-- | Runs a Fake IO test using given arguments
 runFakeIO :: FakeIO () -> [String] -> [String]
 runFakeIO comp inputs =
     DL.toList (fsWrite (S.execState comp initState))
   where
     initState = FS { fsWrite = DL.empty, fsInput = inputs }
 
--- Runs regression test with given seed, one human player, and one computer player
+-- | Runs regression test with given seed (to shuffle the deck),  
+-- one human player, and one computer player
 fakeIOTest :: Test
 fakeIOTest =
   runFakeIO (play' 0 1 1)

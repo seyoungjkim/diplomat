@@ -87,11 +87,12 @@ buildQuestionWithQInt' (Sum qi1 qi2) qi = case buildQuestionWithQInt' qi1 qi of
   Nothing -> case buildQuestionWithQInt' qi2 qi of
     Just qi2' -> Just $ Sum qi1 qi2'
     Nothing -> Nothing
-buildQuestionWithQInt' (Diff qi1 qi2) qi = case buildQuestionWithQInt' qi1 qi of
-  Just qi1' -> Just $ Diff qi1' qi2
-  Nothing -> case buildQuestionWithQInt' qi2 qi of
-    Just qi2' -> Just $ Diff qi1 qi2'
-    Nothing -> Nothing
+buildQuestionWithQInt' (Diff qi1 qi2) qi = 
+  case buildQuestionWithQInt' qi1 qi of
+    Just qi1' -> Just $ Diff qi1' qi2
+    Nothing -> case buildQuestionWithQInt' qi2 qi of
+      Just qi2' -> Just $ Diff qi1 qi2'
+      Nothing -> Nothing
 buildQuestionWithQInt' (Mod qi1 qi2) qi = case buildQuestionWithQInt' qi1 qi of
   Just qi1' -> Just $ Mod qi1' qi2
   Nothing -> case buildQuestionWithQInt' qi2 qi of
